@@ -4,9 +4,11 @@
 /*
  * Fledge IEC 104 north plugin.
  *
+ * Copyright (c) 2020, RTE (https://www.rte-france.com)
+ * 
  * Released under the Apache 2.0 Licence
  *
- * Author: Akli Rahmoun
+ * Author: Akli Rahmoun <akli.rahmoun at rte-france.com>
  */
 
 #include <reading.h>
@@ -26,14 +28,14 @@ class IEC104Server {
 		uint32_t	send(const std::vector<Reading *>& readings);
 		void		stop();
 	private:
-        static void        printCP56Time2a(CP56Time2a time);
-        static void        rawMessageHandler(void* parameter, IMasterConnection conneciton, uint8_t* msg, int msgSize, bool sent);
-        static bool        clockSyncHandler (void* parameter, IMasterConnection connection, CS101_ASDU asdu, CP56Time2a newTime);
-        static bool        interrogationHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, uint8_t qoi);
-		static bool        asduHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu);
-        static bool        connectionRequestHandler(void* parameter, const char* ipAddress);
-        static void        connectionEventHandler(void* parameter, IMasterConnection con, CS104_PeerConnectionEvent event);
-		CS104_Slave				 m_slave{};
+		static void				   printCP56Time2a(CP56Time2a time);
+        static void 			   rawMessageHandler(void* parameter, IMasterConnection conneciton, uint8_t* msg, int msgSize, bool sent);
+        static bool 			   clockSyncHandler (void* parameter, IMasterConnection connection, CS101_ASDU asdu, CP56Time2a newTime);
+        static bool 			   interrogationHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, uint8_t qoi);
+		static bool 			   asduHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu);
+        static bool 			   connectionRequestHandler(void* parameter, const char* ipAddress);
+        static void 			   connectionEventHandler(void* parameter, IMasterConnection con, CS104_PeerConnectionEvent event);
+		CS104_Slave 			 m_slave{};
 		CS101_AppLayerParameters alParams;
 		std::string	 	 		 m_name;
 		Logger					 *m_log;

@@ -1,9 +1,11 @@
 /*
  * Fledge IEC 104 north plugin.
  *
+ * Copyright (c) 2020, RTE (https://www.rte-france.com)
+ * 
  * Released under the Apache 2.0 Licence
  *
- * Author: Akli Rahmoun
+ * Author: Akli Rahmoun <akli.rahmoun at rte-france.com>
  */
 #include <plugin_api.h>
 #include <stdio.h>
