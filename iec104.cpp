@@ -109,7 +109,6 @@ uint32_t IEC104Server::send(const vector<Reading *>& readings)
 
     int16_t value;
     int n = 0;
-    InformationObject io;
     high_resolution_clock m_clock;
 
     for (auto reading = readings.cbegin(); reading != readings.cend(); reading++)
@@ -130,26 +129,23 @@ uint32_t IEC104Server::send(const vector<Reading *>& readings)
 
             if (value.getType() == DatapointValue::T_INTEGER) {
                 if (name.c_str() == "M_ME_NB_1") {
-                    io = (InformationObject) MeasuredValueScaled_create(NULL, 110, value.toInt(), IEC60870_QUALITY_GOOD);
+                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) MeasuredValueScaled_create(NULL, 110, value.toInt(), IEC60870_QUALITY_GOOD));
                 } else if (name.c_str() == "M_SP_TB_1") {
-                    io = (InformationObject) SinglePointWithCP56Time2a_create(NULL, 110, value.toInt(), IEC60870_QUALITY_GOOD, CP56TT);
+                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) SinglePointWithCP56Time2a_create(NULL, 120, value.toInt(), IEC60870_QUALITY_GOOD, CP56TT));
                 } else if (name.c_str() == "M_DP_TB_1") {
-                    io = (InformationObject) DoublePointWithCP56Time2a_create(NULL, 110, (DoublePointValue) value.toInt(), IEC60870_QUALITY_GOOD, CP56TT);    
+                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) DoublePointWithCP56Time2a_create(NULL, 130, (DoublePointValue) value.toInt(), IEC60870_QUALITY_GOOD, CP56TT));
                 } else if (name.c_str() == "M_ST_TB_1") {
-                    io = (InformationObject) StepPositionWithCP56Time2a_create(NULL, 110, value.toInt(), false, IEC60870_QUALITY_GOOD, CP56TT);    
+                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) StepPositionWithCP56Time2a_create(NULL, 140, value.toInt(), false, IEC60870_QUALITY_GOOD, CP56TT));             
                 }
 	        } else if (value.getType() == DatapointValue::T_FLOAT) {
                 if (name.c_str() == "M_ME_NA_1") {
-                    io = (InformationObject) MeasuredValueNormalized_create(NULL, 110, value.toDouble(), IEC60870_QUALITY_GOOD);
+                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) MeasuredValueNormalized_create(NULL, 150, value.toDouble(), IEC60870_QUALITY_GOOD));               
                 } else if ((name.c_str() == "M_ME_NC_1")) {
-                    io = (InformationObject) MeasuredValueShort_create(NULL, 110, value.toDouble(), IEC60870_QUALITY_GOOD);
+                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) MeasuredValueShort_create(NULL, 160, value.toDouble(), IEC60870_QUALITY_GOOD));                   
                 }
             } else {
                 m_log->warn("Asset %s, datapoint %s is unknown type %d", assetName.c_str(), name.c_str(), value.getType());
             }
-
-            CS101_ASDU_addInformationObject(newAsdu, io);
-            InformationObject_destroy(io);
 
             /* Add ASDU to slave event queue - don't release the ASDU afterwards!
             * The ASDU will be released by the Slave instance when the ASDU
