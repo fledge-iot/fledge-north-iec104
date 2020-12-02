@@ -35,10 +35,10 @@ class IEC104Server {
 		static bool 			   asduHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu);
         static bool 			   connectionRequestHandler(void* parameter, const char* ipAddress);
         static void 			   connectionEventHandler(void* parameter, IMasterConnection con, CS104_PeerConnectionEvent event);
-		CS104_Slave 			 m_slave{};
+		CS104_Slave 			 		m_slave{};
 		CS101_AppLayerParameters alParams;
-		std::string	 	 		 m_name;
-		Logger					 *m_log;
+		std::string	 	 		 		m_name;
+		Logger					 		*m_log;
 };
 
 #endif
