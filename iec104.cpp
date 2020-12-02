@@ -40,10 +40,6 @@ IEC104Server::IEC104Server()
      */
     CS104_Slave_setServerMode(m_slave, CS104_MODE_SINGLE_REDUNDANCY_GROUP);
 
-    /* get the connection parameters - we need them to create correct ASDUs -
-     * you can also modify the parameters here when default parameters are not to be used */
-    CS101_AppLayerParameters alParams = CS104_Slave_getAppLayerParameters(m_slave);
-
     /* when you have to tweak the APCI parameters (t0-t3, k, w) you can access them here */
     CS104_APCIParameters apciParams = CS104_Slave_getConnectionParameters(m_slave);
 
@@ -105,6 +101,8 @@ uint32_t IEC104Server::send(const vector<Reading *>& readings)
 {
     if (CS104_Slave_isRunning(m_slave) == false) {
         m_log->error("Starting server failed!");
+    } else {
+	    m_log->info("Server is running!");
     }
 
     int16_t value;
@@ -116,8 +114,13 @@ uint32_t IEC104Server::send(const vector<Reading *>& readings)
         vector<Datapoint *>& dataPoints = (*reading)->getReadingData();
         string assetName = (*reading)->getAssetName();
 
+	    m_log->debug("	Asset Name: %s", assetName.c_str());
+
         for (vector<Datapoint *>::iterator it = dataPoints.begin(); it != dataPoints.end(); ++it)
         {
+            /* get the connection parameters - we need them to create correct ASDUs -
+            * you can also modify the parameters here when default parameters are not to be used */
+            CS101_AppLayerParameters alParams = CS104_Slave_getAppLayerParameters(m_slave);
             CS101_ASDU newAsdu = CS101_ASDU_create(alParams, false, CS101_COT_PERIODIC, 0, 1, false, false);
 
             /* Get the reference to a DataPointValue
@@ -125,35 +128,68 @@ uint32_t IEC104Server::send(const vector<Reading *>& readings)
             DatapointValue& value = (*it)->getData();
             string name = (*it)->getName();
 
+            m_log->debug("	Datapoint Value: %f", value.toDouble());
+            m_log->debug("	Datapoint Type: %s", value.getTypeStr().c_str());
+	        m_log->debug("	Datapoint Name: %s", name.c_str());
+
             CP56Time2a CP56TT = CP56Time2a_createFromMsTimestamp(NULL, duration_cast<milliseconds> (m_clock.now().time_since_epoch()).count());
 
             if (value.getType() == DatapointValue::T_INTEGER) {
-                if (name.c_str() == "M_ME_NB_1") {
-                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) MeasuredValueScaled_create(NULL, 110, value.toInt(), IEC60870_QUALITY_GOOD));
-                } else if (name.c_str() == "M_SP_TB_1") {
-                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) SinglePointWithCP56Time2a_create(NULL, 120, value.toInt(), IEC60870_QUALITY_GOOD, CP56TT));
-                } else if (name.c_str() == "M_DP_TB_1") {
-                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) DoublePointWithCP56Time2a_create(NULL, 130, (DoublePointValue) value.toInt(), IEC60870_QUALITY_GOOD, CP56TT));
-                } else if (name.c_str() == "M_ST_TB_1") {
-                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) StepPositionWithCP56Time2a_create(NULL, 140, value.toInt(), false, IEC60870_QUALITY_GOOD, CP56TT));             
+                if (name.compare("M_ME_NB_1") == 0) {
+                    InformationObject io = (InformationObject) MeasuredValueScaled_create(NULL, 110, value.toInt(), IEC60870_QUALITY_GOOD); 
+                    CS101_ASDU_addInformationObject(newAsdu, io);
+                    InformationObject_destroy(io);
+                    CS104_Slave_enqueueASDU(m_slave, newAsdu);
+                    CS101_ASDU_destroy(newAsdu);
+                } else if (name.compare("M_SP_TB_1") == 0) {
+                    InformationObject io = (InformationObject) SinglePointWithCP56Time2a_create(NULL, 120, value.toInt(), IEC60870_QUALITY_GOOD, CP56TT);
+                    CS101_ASDU_addInformationObject(newAsdu, io);
+                    InformationObject_destroy(io);
+                    CS104_Slave_enqueueASDU(m_slave, newAsdu);
+                    CS101_ASDU_destroy(newAsdu);
+                } else if (name.compare("M_DP_TB_1") == 0) {
+                    InformationObject io = (InformationObject) DoublePointWithCP56Time2a_create(NULL, 130, (DoublePointValue) value.toInt(), IEC60870_QUALITY_GOOD, CP56TT);
+                    CS101_ASDU_addInformationObject(newAsdu, io);
+                    InformationObject_destroy(io);
+                    CS104_Slave_enqueueASDU(m_slave, newAsdu);
+                    CS101_ASDU_destroy(newAsdu);
+                } else if (name.compare("M_ST_TB_1") == 0) {
+                    InformationObject io = (InformationObject) StepPositionWithCP56Time2a_create(NULL, 140, value.toInt(), false, IEC60870_QUALITY_GOOD, CP56TT);
+                    CS101_ASDU_addInformationObject(newAsdu, io);
+                    InformationObject_destroy(io);
+                    CS104_Slave_enqueueASDU(m_slave, newAsdu);
+                    CS101_ASDU_destroy(newAsdu);
+                } else {
+                    m_log->warn("%s is of unknown or not handled ASDU type %s", assetName.c_str(), name.c_str());
                 }
-	        } else if (value.getType() == DatapointValue::T_FLOAT) {
-                if (name.c_str() == "M_ME_NA_1") {
-                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) MeasuredValueNormalized_create(NULL, 150, value.toDouble(), IEC60870_QUALITY_GOOD));               
-                } else if ((name.c_str() == "M_ME_NC_1")) {
-                    CS101_ASDU_addInformationObject(newAsdu, (InformationObject) MeasuredValueShort_create(NULL, 160, value.toDouble(), IEC60870_QUALITY_GOOD));                   
+	     } else if (value.getType() == DatapointValue::T_FLOAT) {
+		        m_log->debug("DatapointValue type detected");
+                if (name.compare("M_ME_NA_1") == 0) {
+                    InformationObject io = (InformationObject) MeasuredValueNormalized_create(NULL, 150, value.toDouble(), IEC60870_QUALITY_GOOD);
+                    CS101_ASDU_addInformationObject(newAsdu, io);
+                    InformationObject_destroy(io);
+                    CS104_Slave_enqueueASDU(m_slave, newAsdu);
+                    CS101_ASDU_destroy(newAsdu);               
+                } else if (name.compare("M_ME_NC_1") == 0) {
+		            m_log->debug("%s ASDU type detected", name.c_str());
+                    InformationObject io = (InformationObject) MeasuredValueShort_create(NULL, 160, value.toDouble(), IEC60870_QUALITY_GOOD);
+		            m_log->debug("InformationObject created");
+                    CS101_ASDU_addInformationObject(newAsdu, io);
+		            m_log->debug("InformationObject to ASDU added");
+                    m_log->debug("    IOA: %i value: %f\n",
+                            InformationObject_getObjectAddress((InformationObject) io),
+                            MeasuredValueShort_getValue((MeasuredValueShort) io)
+                    );
+                    InformationObject_destroy(io);
+                    CS104_Slave_enqueueASDU(m_slave, newAsdu);
+                    m_log->debug("ASDU enqueued to slave");
+                    CS101_ASDU_destroy(newAsdu);                   
+                } else {
+                    m_log->warn("%s is of unknown or not handled ASDU type %s", assetName.c_str(), name.c_str());
                 }
             } else {
                 m_log->warn("Asset %s, datapoint %s is unknown type %d", assetName.c_str(), name.c_str(), value.getType());
             }
-
-            /* Add ASDU to slave event queue - don't release the ASDU afterwards!
-            * The ASDU will be released by the Slave instance when the ASDU
-            * has been sent.
-            */
-            CS104_Slave_enqueueASDU(m_slave, newAsdu);
-
-            CS101_ASDU_destroy(newAsdu);
         }
         n++;
 	}
