@@ -30,7 +30,7 @@ extern "C" {
 /**
  * Plugin specific default configuration
  */
-const char *default_config = QUOTE({
+static const char *default_config = QUOTE({
 			"plugin" : {
 				"description" : "IEC 104 Server",
 				"type" : "string",
