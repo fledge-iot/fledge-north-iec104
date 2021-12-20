@@ -15,10 +15,10 @@
 #include <config_category.h>
 #include <logger.h>
 #include <string>
-#include "cs104_slave.h"
-#include "cs101_information_objects.h"
-#include "hal_thread.h"
-#include "hal_time.h"
+#include "lib60870/cs104_slave.h"
+#include "lib60870/cs101_information_objects.h"
+#include "lib60870/hal_thread.h"
+#include "lib60870/hal_time.h"
 
 class IEC104Server {
   public:

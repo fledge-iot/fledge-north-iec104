@@ -153,7 +153,7 @@ uint32_t IEC104Server::send(const vector < Reading * > & readings) {
     }
     case M_DP_TB_1: {
       m_log -> info("	Received asdu type M_DP_TB_1");
-      InformationObject io = (InformationObject) SinglePointWithCP56Time2a_create(NULL, io_ioa, io_value.toInt(), io_quality, &CP56TT);
+      InformationObject io = (InformationObject) DoublePointWithCP56Time2a_create(NULL, io_ioa, static_cast < DoublePointValue > (io_value.toInt()), io_quality, &CP56TT);
       CS101_ASDU_addInformationObject(newAsdu, io);
       InformationObject_destroy(io);
       CS104_Slave_enqueueASDU(m_slave, newAsdu);
