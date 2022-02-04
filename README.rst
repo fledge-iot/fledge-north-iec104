@@ -41,6 +41,7 @@ Build
 To build the iec104 plugin, once you are in the plugin source tree you need to run:
 
 To build a release:
+
 .. code-block:: console
 
   $ mkdir build
@@ -49,6 +50,7 @@ To build a release:
   $ make
 
 To build with unit tests and code coverage:
+
 .. code-block:: console
 
   $ mkdir build
