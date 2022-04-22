@@ -71,6 +71,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 
 # Add ../include
 include_directories(../include)
+include_directories(/usr/local/include/lib60870)
 # Add Fledge include dir(s)
 include_directories(${FLEDGE_INCLUDE_DIRS})
 
