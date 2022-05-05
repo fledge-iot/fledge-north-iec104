@@ -8,7 +8,7 @@ plugin_install_dirname=${plugin_name}
 #   1. Generic packages we depend on in all architectures and package managers
 #   2. Architecture specific packages we depend on
 #   3. Package manager specific packages we depend on
-requirements="fledge"
+requirements="fledge,fledge-iec"
 
 case "$arch" in
 	x86_64)
@@ -20,7 +20,7 @@ case "$arch" in
 esac
 case "$package_manager" in
 	deb)
-		requirements="${requirements},libboost-filesystem-dev,libboost-program-options-dev";;
+	    ;;
 	rpm)
-		requirements="${requirements},boost-filesystem,boost-program-options";;
+	    ;;
 esac
