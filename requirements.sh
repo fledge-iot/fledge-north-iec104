@@ -62,6 +62,7 @@ if [ ! -d $directory/lib60870 ]; then
 	cd build
 	cmake ..
 	make
+	sudo make install
 	cd ..
 	echo Set the environment variable LIB_104 to `pwd`
 	echo export LIB_104=`pwd`
