@@ -77,9 +77,13 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
+    Logger::getLogger()->info("Initializing the plugin");
 
-	IEC104Server *iec104 = new IEC104Server();
-	iec104->configure(configData);
+	IEC104Server* iec104 = new IEC104Server();
+
+    if (iec104) {
+    	iec104->configure(configData);
+    }
 
 	return (PLUGIN_HANDLE)iec104;
 }
