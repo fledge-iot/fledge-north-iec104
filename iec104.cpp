@@ -622,6 +622,150 @@ bool IEC104Server::clockSyncHandler(void* parameter,
     return true;
 }
 
+static bool
+isBroadcastCA(int ca, CS101_AppLayerParameters alParams)
+{
+    if ((alParams->sizeOfCA == 1) && (ca == 0xff))
+        return true;
+
+    if ((alParams->sizeOfCA == 2) && (ca == 0xffff))
+        return true;
+
+    return false;
+}
+
+void IEC104Server::sendInterrogationResponse(IMasterConnection connection, CS101_ASDU asdu, int ca)
+{
+    CS101_ASDU_setCA(asdu, ca);
+
+    IMasterConnection_sendACT_CON(connection, asdu, false);
+
+    std::map<int, IEC104DataPoint*> ld = m_exchangeDefinitions[ca];
+
+    std::map<int, IEC104DataPoint*>::iterator it;
+
+    sCS101_StaticASDU _asdu;
+    uint8_t ioBuf[250];
+
+    CS101_AppLayerParameters alParams =
+            IMasterConnection_getApplicationLayerParameters(connection);
+
+    CS101_ASDU newASDU = CS101_ASDU_initializeStatic(&_asdu, alParams, false, CS101_COT_INTERROGATED_BY_STATION, CS101_ASDU_getOA(asdu), ca, false, false);
+
+    for (it = ld.begin(); it != ld.end(); it++)
+    {
+        IEC104DataPoint* dp = it->second;
+       
+        printf("  CA: %i IOA: %i => %s\n", dp->m_ca, dp->m_ioa, dp->m_label.c_str());
+
+        InformationObject io = NULL;
+
+        //TODO when value not initialized use invalid/non-topical for quality
+        //TODO when the value has no original timestamp then create timestamp when sending
+
+        switch (dp->m_type) {
+            case M_SP_NA_1:
+                {
+                    io = (InformationObject)SinglePointInformation_create((SinglePointInformation)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality);
+                }
+                break;
+
+            case M_DP_NA_1:
+                {
+                    io = (InformationObject)DoublePointInformation_create((DoublePointInformation)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality);
+                }
+                break;
+
+
+            case M_ME_NA_1:
+                {
+                    io = (InformationObject)MeasuredValueNormalized_create((MeasuredValueNormalized)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality);
+                }
+                break;
+
+            case M_ME_NB_1:
+                {
+                    io = (InformationObject)MeasuredValueScaled_create((MeasuredValueScaled)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality);
+                }
+                break;
+
+            case M_ME_NC_1:
+                {
+                    io = (InformationObject)MeasuredValueShort_create((MeasuredValueShort)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality);
+                }
+                break;
+
+            case M_SP_TB_1:
+                {
+                    sCP56Time2a cpTs;
+
+                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                    io = (InformationObject)SinglePointWithCP56Time2a_create((SinglePointWithCP56Time2a)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality, &cpTs);
+                }
+                break;
+
+            case M_DP_TB_1:
+                {
+                    sCP56Time2a cpTs;
+
+                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                    io = (InformationObject)DoublePointWithCP56Time2a_create((DoublePointWithCP56Time2a)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality, &cpTs);
+                }
+                break;
+
+            case M_ME_TD_1:
+                {
+                    sCP56Time2a cpTs;
+
+                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                    io = (InformationObject)MeasuredValueNormalizedWithCP56Time2a_create((MeasuredValueNormalizedWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality, &cpTs);
+                }
+                break;
+
+            case M_ME_TE_1:
+                {
+                    sCP56Time2a cpTs;
+
+                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                    io = (InformationObject)MeasuredValueScaledWithCP56Time2a_create((MeasuredValueScaledWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality, &cpTs);
+                }
+                break;
+
+            case M_ME_TF_1:
+                {
+                    sCP56Time2a cpTs;
+
+                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                    io = (InformationObject)MeasuredValueShortWithCP56Time2a_create((MeasuredValueShortWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality, &cpTs);
+                }
+                break;
+
+
+        }
+
+        if (io) {
+            if (CS101_ASDU_addInformationObject(newASDU, io) == false) {
+                IMasterConnection_sendASDU(connection, newASDU);
+
+                newASDU = CS101_ASDU_initializeStatic(&_asdu, alParams, false, CS101_COT_INTERROGATED_BY_STATION, CS101_ASDU_getOA(asdu), ca, false, false);
+
+                CS101_ASDU_addInformationObject(newASDU, io);
+            }
+        }
+    }
+
+    if (newASDU)
+        IMasterConnection_sendASDU(connection, newASDU);
+
+
+    IMasterConnection_sendACT_TERM(connection, asdu);
+}
+
 /**
  * Callback handler for station interrogation
  *
@@ -635,164 +779,46 @@ bool IEC104Server::interrogationHandler(void* parameter,
                                         IMasterConnection connection,
                                         CS101_ASDU asdu, uint8_t qoi)
 {
+    //TODO return quality inalid/non-topical when value has not been initialized -> initialize with this quality flags!
+
     IEC104Server* self = (IEC104Server*)parameter;
 
     Logger::getLogger()->info("Received interrogation for group %i", qoi);
 
     int ca = CS101_ASDU_getCA(asdu);
 
-    //TODO return quality inalid/non-topical when value has not been initialized -> initialize with this quality flags!
+    CS101_AppLayerParameters alParams =
+            IMasterConnection_getApplicationLayerParameters(connection);
 
-    if (self->m_exchangeDefinitions.count(ca) == 0) {
-        CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_CA);
-
+    if (qoi != 20) {
         IMasterConnection_sendACT_CON(connection, asdu, true);
 
         return true;
     }
-    else {
-        printf("Logical device with CA %i found\n", ca);
-    }
 
-    if (qoi == 20)
-    {
-        /* only handle station interrogation */
+    if (isBroadcastCA(ca, alParams)) {
+        std::map<int, std::map<int, IEC104DataPoint*>>::iterator it;
 
-        CS101_AppLayerParameters alParams =
-            IMasterConnection_getApplicationLayerParameters(connection);
-
-        IMasterConnection_sendACT_CON(connection, asdu, false);
-
-        std::map<int, IEC104DataPoint*> ld = self->m_exchangeDefinitions[ca];
-
-        std::map<int, IEC104DataPoint*>::iterator it;
-
-        sCS101_StaticASDU _asdu;
-        uint8_t ioBuf[250];
-
-        CS101_ASDU newASDU = CS101_ASDU_initializeStatic(&_asdu, alParams, false, CS101_COT_INTERROGATED_BY_STATION, CS101_ASDU_getOA(asdu), ca, false, false);
-
-        for (it = ld.begin(); it != ld.end(); it++)
+        for (it = self->m_exchangeDefinitions.begin(); it != self->m_exchangeDefinitions.end(); it++)
         {
-            IEC104DataPoint* dp = it->second;
-           
-            printf("  CA: %i IOA: %i => %s\n", dp->m_ca, dp->m_ioa, dp->m_label.c_str());
+            ca = it->first;
 
-            if (newASDU == NULL) {
-                printf("Failed to allocate memory for ASDU\n");
-                break;
-            }
-
-            InformationObject io = NULL;
-
-            //TODO when value not initialized use invalid/non-topical for quality
-            //TODO when the value has no original timestamp then create timestamp when sending
-
-            switch (dp->m_type) {
-                case M_SP_NA_1:
-                    {
-                        io = (InformationObject)SinglePointInformation_create((SinglePointInformation)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality);
-                    }
-                    break;
-
-                case M_DP_NA_1:
-                    {
-                        io = (InformationObject)DoublePointInformation_create((DoublePointInformation)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality);
-                    }
-                    break;
-
-
-                case M_ME_NA_1:
-                    {
-                        io = (InformationObject)MeasuredValueNormalized_create((MeasuredValueNormalized)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality);
-                    }
-                    break;
-
-                case M_ME_NB_1:
-                    {
-                        io = (InformationObject)MeasuredValueScaled_create((MeasuredValueScaled)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality);
-                    }
-                    break;
-
-                case M_ME_NC_1:
-                    {
-                        io = (InformationObject)MeasuredValueShort_create((MeasuredValueShort)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality);
-                    }
-                    break;
-
-                case M_SP_TB_1:
-                    {
-                        sCP56Time2a cpTs;
-
-                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
-
-                        io = (InformationObject)SinglePointWithCP56Time2a_create((SinglePointWithCP56Time2a)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality, &cpTs);
-                    }
-                    break;
-
-                case M_DP_TB_1:
-                    {
-                        sCP56Time2a cpTs;
-
-                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
-
-                        io = (InformationObject)DoublePointWithCP56Time2a_create((DoublePointWithCP56Time2a)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality, &cpTs);
-                    }
-                    break;
-
-                case M_ME_TD_1:
-                    {
-                        sCP56Time2a cpTs;
-
-                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
-
-                        io = (InformationObject)MeasuredValueNormalizedWithCP56Time2a_create((MeasuredValueNormalizedWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality, &cpTs);
-                    }
-                    break;
-
-                case M_ME_TE_1:
-                    {
-                        sCP56Time2a cpTs;
-
-                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
-
-                        io = (InformationObject)MeasuredValueScaledWithCP56Time2a_create((MeasuredValueScaledWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality, &cpTs);
-                    }
-                    break;
-
-                case M_ME_TF_1:
-                    {
-                        sCP56Time2a cpTs;
-
-                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
-
-                        io = (InformationObject)MeasuredValueShortWithCP56Time2a_create((MeasuredValueShortWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality, &cpTs);
-                    }
-                    break;
-
-
-            }
-
-            if (io) {
-                if (CS101_ASDU_addInformationObject(newASDU, io) == false) {
-                    IMasterConnection_sendASDU(connection, newASDU);
-
-                    newASDU = CS101_ASDU_initializeStatic(&_asdu, alParams, false, CS101_COT_INTERROGATED_BY_STATION, CS101_ASDU_getOA(asdu), ca, false, false);
-
-                    CS101_ASDU_addInformationObject(newASDU, io);
-                }
-            }
+            self->sendInterrogationResponse(connection, asdu, ca);
         }
-
-        if (newASDU)
-            IMasterConnection_sendASDU(connection, newASDU);
-
-
-        IMasterConnection_sendACT_TERM(connection, asdu);
     }
-    else
-    {
-        IMasterConnection_sendACT_CON(connection, asdu, true);
+    else {
+        if (self->m_exchangeDefinitions.count(ca) == 0) {
+            CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_CA);
+
+            IMasterConnection_sendACT_CON(connection, asdu, true);
+
+            return true;
+        }
+        else {
+            printf("Logical device with CA %i found\n", ca);
+
+            self->sendInterrogationResponse(connection, asdu, ca);
+        }
     }
 
     return true;

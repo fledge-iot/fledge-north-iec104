@@ -137,6 +137,9 @@ private:
                                   uint8_t* msg, int msgSize, bool sent);
     static bool clockSyncHandler(void* parameter, IMasterConnection connection,
                                  CS101_ASDU asdu, CP56Time2a newTime);
+
+    void sendInterrogationResponse(IMasterConnection connection, CS101_ASDU asdu, int ca);
+
     static bool interrogationHandler(void* parameter,
                                      IMasterConnection connection,
                                      CS101_ASDU asdu, uint8_t qoi);

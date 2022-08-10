@@ -154,6 +154,30 @@ typedef struct
                           "typeid":"M_ME_NC_1"
                        }
                     ]
+                },
+                {
+                    "label":"TM13",
+                    "pivot_id":"ID99876",
+                    "pivot_type":"DpsTyp",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"145-996",
+                          "typeid":"M_ME_NC_1"
+                       }
+                    ]
+                },
+                {
+                    "label":"TM14",
+                    "pivot_id":"ID99876",
+                    "pivot_type":"DpsTyp",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"145-997",
+                          "typeid":"M_ME_NC_1"
+                       }
+                    ]
                 }
             ]
         }
@@ -232,7 +256,7 @@ static bool test1_ASDUReceivedHandler(void* parameter, int address, CS101_ASDU a
 }
 
 // Test the callback handler for station interrogation
-TEST_F(InterrogationHandlerTest, InterrogationHandler)
+TEST_F(InterrogationHandlerTest, InterrogationHandlerSingleCA)
 {
     json_config config;
 
@@ -294,6 +318,101 @@ TEST_F(InterrogationHandlerTest, InterrogationHandler)
         asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 5));
 
         ASSERT_EQ(45, asdu->ca);
+        ASSERT_EQ(CS101_COT_ACTIVATION_TERMINATION, asdu->cot);
+        ASSERT_EQ(1, asdu->numberOfIOs);
+        ASSERT_EQ(C_IC_NA_1, asdu->typeId);
+    }
+    else {
+        ASSERT_TRUE(false);
+    }
+
+    LinkedList_destroy(receivedASDUs);
+}
+
+// Test the callback handler for station interrogation
+TEST_F(InterrogationHandlerTest, InterrogationHandlerBroadcastCA)
+{
+    json_config config;
+
+    receivedASDUs = LinkedList_create();
+
+    iec104Server->setJsonConfig(config.protocol_stack, config.exchanged_data, config.tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+    
+    if (result)
+    {
+        CS104_Connection_sendStartDT(connection);
+
+        CS104_Connection_sendInterrogationCommand(
+            connection, CS101_COT_ACTIVATION, 0xffff, IEC60870_QOI_STATION);
+
+        Thread_sleep(500);
+
+        ASSERT_EQ(9, LinkedList_size(receivedASDUs));
+
+        struct sASDU_testInfo* asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 0));
+
+        ASSERT_EQ(45, asdu->ca);
+        ASSERT_EQ(CS101_COT_ACTIVATION_CON, asdu->cot);
+        ASSERT_EQ(1, asdu->numberOfIOs);
+        ASSERT_EQ(C_IC_NA_1, asdu->typeId);
+
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 1));
+
+        ASSERT_EQ(45, asdu->ca);
+        ASSERT_EQ(CS101_COT_INTERROGATED_BY_STATION, asdu->cot);
+        ASSERT_EQ(2, asdu->numberOfIOs);
+        ASSERT_EQ(M_SP_NA_1, asdu->typeId);
+
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 2));
+
+        ASSERT_EQ(45, asdu->ca);
+        ASSERT_EQ(CS101_COT_INTERROGATED_BY_STATION, asdu->cot);
+        ASSERT_EQ(1, asdu->numberOfIOs);
+        ASSERT_EQ(M_ME_NA_1, asdu->typeId);
+
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 3));
+
+        ASSERT_EQ(45, asdu->ca);
+        ASSERT_EQ(CS101_COT_INTERROGATED_BY_STATION, asdu->cot);
+        ASSERT_EQ(1, asdu->numberOfIOs);
+        ASSERT_EQ(M_ME_NB_1, asdu->typeId);
+
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 4));
+
+        ASSERT_EQ(45, asdu->ca);
+        ASSERT_EQ(CS101_COT_INTERROGATED_BY_STATION, asdu->cot);
+        ASSERT_EQ(2, asdu->numberOfIOs);
+        ASSERT_EQ(M_ME_NC_1, asdu->typeId);
+
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 5));
+
+        ASSERT_EQ(45, asdu->ca);
+        ASSERT_EQ(CS101_COT_ACTIVATION_TERMINATION, asdu->cot);
+        ASSERT_EQ(1, asdu->numberOfIOs);
+        ASSERT_EQ(C_IC_NA_1, asdu->typeId);
+
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 6));
+
+        ASSERT_EQ(145, asdu->ca);
+        ASSERT_EQ(CS101_COT_ACTIVATION_CON, asdu->cot);
+        ASSERT_EQ(1, asdu->numberOfIOs);
+        ASSERT_EQ(C_IC_NA_1, asdu->typeId);
+
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 7));
+
+        ASSERT_EQ(145, asdu->ca);
+        ASSERT_EQ(CS101_COT_INTERROGATED_BY_STATION, asdu->cot);
+        ASSERT_EQ(2, asdu->numberOfIOs);
+        ASSERT_EQ(M_ME_NC_1, asdu->typeId);
+
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 8));
+
+        ASSERT_EQ(145, asdu->ca);
         ASSERT_EQ(CS101_COT_ACTIVATION_TERMINATION, asdu->cot);
         ASSERT_EQ(1, asdu->numberOfIOs);
         ASSERT_EQ(C_IC_NA_1, asdu->typeId);
