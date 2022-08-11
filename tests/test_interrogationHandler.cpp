@@ -5,13 +5,12 @@
 #include <memory>
 #include <utility>
 
+#include <lib60870/linked_list.h>
+
 #include "cs104_connection.h"
 #include <plugin_api.h>
-#include <json.hpp>
-#include "linked_list.h"
 
 using namespace std;
-using namespace nlohmann;
 
 typedef struct
 {
