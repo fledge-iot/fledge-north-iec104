@@ -22,6 +22,8 @@
 #include <cstring>
 #include <iostream>
 #include <json.hpp>
+#include "rapidjson/document.h"
+#include "rapidjson/error/en.h"
 
 using namespace std;
 using namespace nlohmann;
@@ -201,6 +203,55 @@ IEC104DataPoint* IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
     return dp;
 }
 
+static int
+typeIdToDataType(IEC60870_5_TypeID typeId)
+{
+    int dataType = 0;
+
+    switch (typeId) {
+        case M_SP_NA_1:
+        case M_SP_TA_1:
+        case M_SP_TB_1:
+            dataType = IEC60870_TYPE_SP;
+            break;
+
+        case M_DP_NA_1:
+        case M_DP_TA_1:
+        case M_DP_TB_1:
+            dataType = IEC60870_TYPE_DP;
+            break;
+
+        case M_ST_NA_1:
+        case M_ST_TA_1:
+        case M_ST_TB_1:
+            dataType = IEC60870_TYPE_STEP_POS;
+            break;
+
+        case M_ME_NA_1:
+        case M_ME_TA_1:
+        case M_ME_TD_1:
+            dataType = IEC60870_TYPE_NORMALIZED;
+            break;
+
+        case M_ME_NB_1:
+        case M_ME_TB_1:
+        case M_ME_TE_1:
+            dataType = IEC60870_TYPE_SCALED;
+            break;
+
+        case M_ME_NC_1:
+        case M_ME_TC_1:
+        case M_ME_TF_1:
+            dataType = IEC60870_TYPE_SHORT;
+            break;
+
+        default:
+            break;
+    }
+
+    return dataType;
+}
+
 void IEC104Server::setJsonConfig(const std::string& stackConfig,
                                  const std::string& dataExchangeConfig,
                                 const std::string& tlsConfig)
@@ -234,8 +285,9 @@ void IEC104Server::setJsonConfig(const std::string& stackConfig,
 
                     int typeId = mapAsduTypeId[typeIdStr];
 
+                    int dataType = typeIdToDataType((IEC60870_5_TypeID)typeId);
 
-                    IEC104DataPoint* newDp = new IEC104DataPoint(label, ca, ioa, typeId);
+                    IEC104DataPoint* newDp = new IEC104DataPoint(label, ca, ioa, dataType);
                
                     m_exchangeDefinitions[ca][ioa] = newDp;
                 }
@@ -302,6 +354,18 @@ void IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID type
                 dp->m_value.dp.quality = quality;
             }
 
+            break;
+
+        case M_ST_NA_1:
+        case M_ST_TB_1:
+            {
+                if (value->getType() == DatapointValue::dataTagType::T_INTEGER) {
+                    dp->m_value.stepPos.posValue = (int)(value->toInt() & 0x7f);
+                    dp->m_value.stepPos.transient = (unsigned int)((value->toInt() & 0x80) != 0);
+                }
+
+                dp->m_value.stepPos.quality = quality;
+            }
             break;
 
         case M_ME_NA_1: /* normalized value */
@@ -656,95 +720,94 @@ void IEC104Server::sendInterrogationResponse(IMasterConnection connection, CS101
     {
         IEC104DataPoint* dp = it->second;
        
-        printf("  CA: %i IOA: %i => %s\n", dp->m_ca, dp->m_ioa, dp->m_label.c_str());
+        printf("  CA: %i IOA: %i type: %i => %s\n", dp->m_ca, dp->m_ioa, dp->m_type, dp->m_label.c_str());
 
         InformationObject io = NULL;
 
         //TODO when value not initialized use invalid/non-topical for quality
         //TODO when the value has no original timestamp then create timestamp when sending
 
+        bool sendWithTimestamp = false;
+
         switch (dp->m_type) {
-            case M_SP_NA_1:
-                {
-                    io = (InformationObject)SinglePointInformation_create((SinglePointInformation)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality);
-                }
-                break;
-
-            case M_DP_NA_1:
-                {
-                    io = (InformationObject)DoublePointInformation_create((DoublePointInformation)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality);
-                }
-                break;
-
-
-            case M_ME_NA_1:
-                {
-                    io = (InformationObject)MeasuredValueNormalized_create((MeasuredValueNormalized)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality);
-                }
-                break;
-
-            case M_ME_NB_1:
-                {
-                    io = (InformationObject)MeasuredValueScaled_create((MeasuredValueScaled)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality);
-                }
-                break;
-
-            case M_ME_NC_1:
-                {
-                    io = (InformationObject)MeasuredValueShort_create((MeasuredValueShort)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality);
-                }
-                break;
-
-            case M_SP_TB_1:
-                {
+            case IEC60870_TYPE_SP:
+                if (sendWithTimestamp) {
                     sCP56Time2a cpTs;
 
                     CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
 
                     io = (InformationObject)SinglePointWithCP56Time2a_create((SinglePointWithCP56Time2a)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality, &cpTs);
                 }
+                else  {
+                    io = (InformationObject)SinglePointInformation_create((SinglePointInformation)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality);
+                }
                 break;
 
-            case M_DP_TB_1:
-                {
+            case IEC60870_TYPE_DP:
+                if (sendWithTimestamp) {
                     sCP56Time2a cpTs;
 
                     CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
 
                     io = (InformationObject)DoublePointWithCP56Time2a_create((DoublePointWithCP56Time2a)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality, &cpTs);
                 }
+                else {
+                    io = (InformationObject)DoublePointInformation_create((DoublePointInformation)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality);
+                }
                 break;
 
-            case M_ME_TD_1:
-                {
+            case IEC60870_TYPE_NORMALIZED:
+                if (sendWithTimestamp) {
                     sCP56Time2a cpTs;
 
                     CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
 
                     io = (InformationObject)MeasuredValueNormalizedWithCP56Time2a_create((MeasuredValueNormalizedWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality, &cpTs);
+
+                }
+                else {
+                    io = (InformationObject)MeasuredValueNormalized_create((MeasuredValueNormalized)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality);
                 }
                 break;
 
-            case M_ME_TE_1:
-                {
+            case IEC60870_TYPE_SCALED:
+                if (sendWithTimestamp) {
                     sCP56Time2a cpTs;
 
                     CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
 
                     io = (InformationObject)MeasuredValueScaledWithCP56Time2a_create((MeasuredValueScaledWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality, &cpTs);
                 }
+                else {
+                    io = (InformationObject)MeasuredValueScaled_create((MeasuredValueScaled)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality);
+                }
                 break;
 
-            case M_ME_TF_1:
-                {
+            case IEC60870_TYPE_SHORT:
+                if (sendWithTimestamp) {
                     sCP56Time2a cpTs;
 
                     CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
 
                     io = (InformationObject)MeasuredValueShortWithCP56Time2a_create((MeasuredValueShortWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality, &cpTs);
                 }
+                else {
+                    io = (InformationObject)MeasuredValueShort_create((MeasuredValueShort)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality);
+                }
                 break;
 
+            case IEC60870_TYPE_STEP_POS:
+                if (sendWithTimestamp) {
+                    sCP56Time2a cpTs;
+
+                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                    io = (InformationObject)StepPositionWithCP56Time2a_create((StepPositionWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.stepPos.posValue, dp->m_value.stepPos.transient, dp->m_value.stepPos.quality, &cpTs);
+                }
+                else {
+                    io = (InformationObject)StepPositionInformation_create((StepPositionInformation)&ioBuf, dp->m_ioa, dp->m_value.stepPos.posValue, dp->m_value.stepPos.transient, dp->m_value.stepPos.quality);
+                }
+                break;
 
         }
 

@@ -56,7 +56,7 @@ static const char *default_config = QUOTE({
 static PLUGIN_INFORMATION info = {
 	   PLUGIN_NAME,			// Name
 	   VERSION,			    // Version
-	   0,				    // Flags
+	   SP_CONTROL,		    // Flags
 	   PLUGIN_TYPE_NORTH,	// Type
 	   "1.0.0",			    // Interface version
 	   default_config		// Configuration
