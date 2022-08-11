@@ -21,100 +21,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <json.hpp>
-#include "rapidjson/document.h"
-#include "rapidjson/error/en.h"
+
 
 using namespace std;
-using namespace nlohmann;
-
-#define IEC60870_TYPE_SP 1
-#define IEC60870_TYPE_DP 2
-#define IEC60870_TYPE_STEP_POS 3
-#define IEC60870_TYPE_NORMALIZED 4
-#define IEC60870_TYPE_SCALED 5
-#define IEC60870_TYPE_SHORT 6
-
-// Map of all handled ASDU types by the plugin
-static map<string, int> mapAsduTypeId = {
-    {"M_ME_NB_1", M_ME_NB_1},
-    {"M_SP_NA_1", M_SP_NA_1},
-    {"M_SP_TB_1", M_SP_TB_1},
-    {"M_DP_NA_1", M_DP_NA_1},
-    {"M_DP_TB_1", M_DP_TB_1},
-    {"M_ST_NA_1", M_ST_NA_1},
-    {"M_ST_TB_1", M_ST_TB_1},
-    {"M_ME_NA_1", M_ME_NA_1},
-    {"M_ME_TD_1", M_ME_TD_1},
-    {"M_ME_TE_1", M_ME_TE_1},
-    {"M_ME_NC_1", M_ME_NC_1},
-    {"M_ME_TF_1", M_ME_TF_1},
-    {"C_SC_NA_1", C_SC_NA_1},
-    {"C_SC_TA_1", C_SC_TA_1},
-    {"C_DC_NA_1", C_DC_NA_1},
-    {"C_DC_TA_1", C_DC_TA_1},
-    {"C_RC_NA_1", C_RC_NA_1},
-    {"C_RC_TA_1", C_RC_TA_1},
-    {"C_SE_NA_1", C_SE_NA_1},
-    {"C_SE_TA_1", C_SE_TA_1},
-    {"C_SE_NB_1", C_SE_NB_1},
-    {"C_SE_TB_1", C_SE_TB_1},
-    {"C_SE_NC_1", C_SE_NC_1},
-    {"C_SE_TC_1", C_SE_TC_1}
-};
 
 static bool running = true;
-
-IEC104DataPoint::IEC104DataPoint(std::string label, int ca, int ioa, int type)
-{
-    m_ca = ca;
-    m_ioa = ioa;
-    m_type = type;
-    m_label = label;
-
-    //TODO set intial value and quality to invalid
-
-    switch (type) {
-        case IEC60870_TYPE_SP:
-            m_value.sp.value = 0;
-            m_value.sp.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
-            
-            break;
-
-        case IEC60870_TYPE_DP:
-            m_value.dp.value = 0;
-            m_value.dp.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
-            
-            break;
-
-        case IEC60870_TYPE_STEP_POS:
-            m_value.stepPos.posValue = 0;
-            m_value.stepPos.transient = 0;
-            m_value.stepPos.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
-            
-            break;
-
-        case IEC60870_TYPE_NORMALIZED:
-            m_value.mv_normalized.value = 0;
-            m_value.mv_normalized.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
-
-            break;
-
-        case IEC60870_TYPE_SCALED:
-            m_value.mv_scaled.value = 0;
-            m_value.mv_scaled.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
-
-            break;
-
-        case IEC60870_TYPE_SHORT:
-            m_value.mv_short.value = 0;
-            m_value.mv_short.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
-
-            break;
-    } 
-}
-
-
 
 /**
  * Constructor for the IEC104 Server object
@@ -122,6 +33,8 @@ IEC104DataPoint::IEC104DataPoint(std::string label, int ca, int ioa, int type)
 IEC104Server::IEC104Server()
 {
     m_log = Logger::getLogger();
+
+    m_config = new IEC104Config();
 
     /* create a new slave/server instance with default connection parameters and
      * default message queue size */
@@ -173,29 +86,6 @@ IEC104Server::IEC104Server()
  */
 IEC104Server::~IEC104Server() {}
 
-template <class T>
-static T getConfigValueDefault(json configuration, json_pointer<json> path, T defaultValue)
-{
-    T typed_value = defaultValue;
-
-    try
-    {
-        typed_value = configuration.at(path);
-    }
-    catch (json::parse_error& e)
-    {
-        Logger::getLogger()->fatal("Couldn't parse value " + path.to_string() +
-                                   " : " + e.what());
-    }
-    catch (json::out_of_range& e)
-    {
-        Logger::getLogger()->fatal("Couldn't reach value " + path.to_string() +
-                                   " : " + e.what());
-    }
-
-    return typed_value;
-}
-
 IEC104DataPoint* IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
 {
     IEC104DataPoint* dp = m_exchangeDefinitions[ca][ioa];
@@ -203,97 +93,14 @@ IEC104DataPoint* IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
     return dp;
 }
 
-static int
-typeIdToDataType(IEC60870_5_TypeID typeId)
-{
-    int dataType = 0;
-
-    switch (typeId) {
-        case M_SP_NA_1:
-        case M_SP_TA_1:
-        case M_SP_TB_1:
-            dataType = IEC60870_TYPE_SP;
-            break;
-
-        case M_DP_NA_1:
-        case M_DP_TA_1:
-        case M_DP_TB_1:
-            dataType = IEC60870_TYPE_DP;
-            break;
-
-        case M_ST_NA_1:
-        case M_ST_TA_1:
-        case M_ST_TB_1:
-            dataType = IEC60870_TYPE_STEP_POS;
-            break;
-
-        case M_ME_NA_1:
-        case M_ME_TA_1:
-        case M_ME_TD_1:
-            dataType = IEC60870_TYPE_NORMALIZED;
-            break;
-
-        case M_ME_NB_1:
-        case M_ME_TB_1:
-        case M_ME_TE_1:
-            dataType = IEC60870_TYPE_SCALED;
-            break;
-
-        case M_ME_NC_1:
-        case M_ME_TC_1:
-        case M_ME_TF_1:
-            dataType = IEC60870_TYPE_SHORT;
-            break;
-
-        default:
-            break;
-    }
-
-    return dataType;
-}
-
 void IEC104Server::setJsonConfig(const std::string& stackConfig,
                                  const std::string& dataExchangeConfig,
                                 const std::string& tlsConfig)
 {
-    nlohmann::json dataExchangeDef = json::parse(dataExchangeConfig)["exchanged_data"];
+    m_config->importExchangeConfig(dataExchangeConfig);
+    m_config->importProtocolConfig(stackConfig);
 
-    for (auto& element :  dataExchangeDef["datapoints"]) {
-        std::string label = getConfigValueDefault<std::string>(element, "/label"_json_pointer, "");
-
-        for (auto& protocol : element["protocols"]) {
-            std::string protoName = getConfigValueDefault<std::string>(protocol, "/name"_json_pointer, "");
-        
-            printf("data point: %s protocol: %s\n", label.c_str(), protoName.c_str());
-
-            if (protoName == "iec104") {
-                std::string address = getConfigValueDefault<std::string>(protocol, "/address"_json_pointer, "");
-                std::string typeIdStr = getConfigValueDefault<std::string>(protocol, "/typeid"_json_pointer, "");
-         
-                printf("  address: %s type: %s\n", address.c_str(), typeIdStr.c_str());
-
-                size_t sepPos = address.find("-");
-
-                if (sepPos != std::string::npos) {
-                    std::string caStr = address.substr(0, sepPos);
-                    std::string ioaStr = address.substr(sepPos + 1);
-
-                    int ca = std::stoi(caStr);
-                    int ioa = std::stoi(ioaStr);
-
-                    printf("    CA: %i IOA: %i\n", ca, ioa);
-
-                    int typeId = mapAsduTypeId[typeIdStr];
-
-                    int dataType = typeIdToDataType((IEC60870_5_TypeID)typeId);
-
-                    IEC104DataPoint* newDp = new IEC104DataPoint(label, ca, ioa, dataType);
-               
-                    m_exchangeDefinitions[ca][ioa] = newDp;
-                }
-            }
-        }
-    }
+    m_exchangeDefinitions = *m_config->getExchangeDefinitions();
 }
 
 /**
@@ -533,7 +340,7 @@ uint32_t IEC104Server::send(const vector<Reading*>& readings)
                         cot = (CS101_CauseOfTransmission)attrVal.toInt();
                     }
                     else if (objDp->getName() == "do_type") {
-                        type = mapAsduTypeId[attrVal.toStringValue()];
+                        type = IEC104DataPoint::getTypeIdFromString(attrVal.toStringValue());
                     }
                     else if (objDp->getName() == "do_value") {
                         value = new DatapointValue(attrVal);
@@ -945,17 +752,7 @@ bool IEC104Server::connectionRequestHandler(void* parameter,
 {
     Logger::getLogger()->info("New connection request from %s", ipAddress);
 
-#if 0
-  if (strcmp(ipAddress, "127.0.0.1") == 0) {
-    Logger::getLogger() -> info("Accept connection");
     return true;
-  } else {
-    Logger::getLogger() -> warn("Deny connection");
-    return false;
-  }
-#else
-    return true;
-#endif
 }
 
 /**
