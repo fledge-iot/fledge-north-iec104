@@ -21,6 +21,7 @@ public:
 
     static int typeIdToDataType(int typeId);
     static int getTypeIdFromString(std::string typeIdStr);
+    static std::string getStringFromTypeID(int typeId);
 
     int m_ca;
     int m_ioa;

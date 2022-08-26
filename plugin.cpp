@@ -99,6 +99,16 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	return iec104->send(readings);
 }
 
+
+void plugin_register(PLUGIN_HANDLE handle,
+		bool ( *write)(const char *name, const char *value, ControlDestination destination, ...),
+		int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...))
+{
+    IEC104Server *iec104 = (IEC104Server *)handle;
+
+    iec104->registerControl(operation);
+}
+
 /**
  * Shutdown the plugin
  *

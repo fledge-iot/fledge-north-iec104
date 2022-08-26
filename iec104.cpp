@@ -40,6 +40,8 @@ IEC104Server::IEC104Server()
      * default message queue size */
     m_slave = CS104_Slave_create(10, 10);
 
+    m_oper = NULL;
+
     CS104_Slave_setLocalAddress(m_slave, "0.0.0.0");
 
     /* Set mode to a single redundancy group
@@ -62,21 +64,21 @@ IEC104Server::IEC104Server()
     m_log->info("  w: %i", apciParams->w);
 
     /* set the callback handler for the clock synchronization command */
-    CS104_Slave_setClockSyncHandler(m_slave, clockSyncHandler, NULL);
+    CS104_Slave_setClockSyncHandler(m_slave, clockSyncHandler, this);
 
     /* set the callback handler for the interrogation command */
     CS104_Slave_setInterrogationHandler(m_slave, interrogationHandler, this);
 
     /* set handler for other message types */
-    CS104_Slave_setASDUHandler(m_slave, asduHandler, NULL);
+    CS104_Slave_setASDUHandler(m_slave, asduHandler, this);
 
     /* set handler to handle connection requests (optional) */
     CS104_Slave_setConnectionRequestHandler(m_slave, connectionRequestHandler,
-                                            NULL);
+                                            this);
 
     /* set handler to track connection events (optional) */
     CS104_Slave_setConnectionEventHandler(m_slave, connectionEventHandler,
-                                          NULL);
+                                          this);
 
     CS104_Slave_start(m_slave);
 }
@@ -131,6 +133,11 @@ void IEC104Server::configure(const ConfigCategory* config)
     const std::string tlsConfig = std::string("");
 
     setJsonConfig(protocolStack, dataExchange, tlsConfig);
+}
+
+void IEC104Server::registerControl(int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...))
+{
+    m_oper = operation;
 }
 
 void IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, DatapointValue* value, CP56Time2a ts, uint8_t quality)
@@ -273,6 +280,311 @@ void IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTra
 
 }
 
+static Datapoint* createStringDatapoint(const std::string& dataname,
+                                        std::string value)
+{
+    DatapointValue dp_value = DatapointValue(value);
+    return new Datapoint(dataname, dp_value);
+}
+
+static Datapoint* createLongDatapoint(const std::string& dataname,
+                                        long value)
+{
+    DatapointValue dp_value = DatapointValue(value);
+    return new Datapoint(dataname, dp_value);
+}
+
+bool IEC104Server::checkTimestamp(CP56Time2a timestamp)
+{
+    uint64_t currentTime = Hal_getTimeInMs();
+
+    uint64_t commandTime = CP56Time2a_toMsTimestamp(timestamp);
+
+    int timeDiff;
+
+    if (commandTime > currentTime) {
+        timeDiff = commandTime - currentTime;
+    }
+    else {
+        timeDiff = currentTime - commandTime;
+    }
+
+    if (timeDiff > 5000) {
+        m_log->warn("Command timestamp is out of valid range -> ignore command");
+
+        //TODO in this case no ACT_CON should be sent!
+
+        return false;
+    }
+    else {
+        return true;
+    }
+ }
+
+bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
+{
+    if (!m_oper) {
+        m_log->error("No operation function available");
+        return false;
+    }
+    else {
+        IEC60870_5_TypeID typeId = CS101_ASDU_getTypeID(asdu);
+
+        // parameter[0] = CA
+        // parameter[1] = IOA
+        // parameter[2] = value
+        // parameter[3] = select (optional - not used for setpoints)
+
+        int parameterCount = 2;
+
+        char* s_ca = (char*)std::to_string(CS101_ASDU_getCA(asdu)).c_str();
+        char* s_ioa = (char*)std::to_string(InformationObject_getObjectAddress(command)).c_str();
+        char* s_val = NULL;
+        char* s_select = NULL;
+
+        char* parameters[5];
+
+        parameters[0] = s_ca;
+        parameters[1] = s_ioa;
+
+        switch (typeId) {
+
+            case C_SC_NA_1:
+                {
+                    SingleCommand sc = (SingleCommand)command;
+
+                    s_val = (char*)(SingleCommand_getState(sc) ? "1" : "0");
+                    s_select = (char*)(SingleCommand_isSelect(sc) ? "1" : "0");
+
+                    parameters[2] = s_val;
+                    parameters[3] = s_select;
+
+                    parameterCount = 4;
+
+                    m_oper((char*)"SingleCommand", 4, parameters, DestinationBroadcast, NULL);
+                }
+                break;
+
+            case C_SC_TA_1:
+                {
+                    //TODO command with timestamp -> check validity of timestamp
+
+                    SingleCommandWithCP56Time2a sc = (SingleCommandWithCP56Time2a)command;
+
+                    CP56Time2a timestamp = SingleCommandWithCP56Time2a_getTimestamp(sc);
+
+                    if (checkTimestamp(timestamp)) {
+                        s_val = (char*)(SingleCommand_getState((SingleCommand)sc) ? "1" : "0");
+                        s_select = (char*)(SingleCommand_isSelect((SingleCommand)sc) ? "1" : "0");
+
+                        parameters[2] = s_val;
+                        parameters[3] = s_select;
+
+                        parameterCount = 4;
+
+                        m_oper((char*)"SingleCommandWithCP56Time2a", 4, parameters, DestinationBroadcast, NULL);
+                    }
+                    else {
+                        return false;
+                    }
+
+                }
+                break;
+
+            case C_DC_NA_1:
+                {
+                    DoubleCommand dc = (DoubleCommand)command;
+
+                    s_val = (char*)std::to_string(DoubleCommand_getState(dc)).c_str();
+                    s_select = (char*)(DoubleCommand_isSelect(dc) ? "1" : "0");
+
+                    parameters[2] = s_val;
+                    parameters[3] = s_select;
+
+                    parameterCount = 4;
+
+                    m_oper((char*)"DoubleCommand", 4, parameters, DestinationBroadcast, NULL);
+                }
+                break;
+
+            case C_DC_TA_1:
+                {
+                    DoubleCommandWithCP56Time2a dc = (DoubleCommandWithCP56Time2a)command;
+
+                    CP56Time2a timestamp = DoubleCommandWithCP56Time2a_getTimestamp(dc);
+
+                    if (checkTimestamp(timestamp)) {
+                        s_val = (char*)std::to_string(DoubleCommand_getState((DoubleCommand)dc)).c_str();
+                        s_select = (char*)(DoubleCommand_isSelect((DoubleCommand)dc) ? "1" : "0");
+
+                        parameters[2] = s_val;
+                        parameters[3] = s_select;
+
+                        parameterCount = 4;
+
+                        m_oper((char*)"DoubleCommandWithCP56Time2a", 4, parameters, DestinationBroadcast, NULL);
+                    }
+                    else {
+                        return false;
+                    }
+                }
+                break;
+
+            case C_RC_NA_1:
+                {
+                    StepCommand rc = (StepCommand)command;
+
+                    s_val = (char*)std::to_string(StepCommand_getState(rc)).c_str();
+                    s_select = (char*)(StepCommand_isSelect(rc) ? "1" : "0");
+
+                    parameters[2] = s_val;
+                    parameters[3] = s_select;
+
+                    parameterCount = 4;
+
+                    m_oper((char*)"StepCommand", 4, parameters, DestinationBroadcast, NULL);
+                }
+                break;
+
+             case C_RC_TA_1:
+                {
+                    StepCommandWithCP56Time2a rc = (StepCommandWithCP56Time2a)command;
+
+                    CP56Time2a timestamp = StepCommandWithCP56Time2a_getTimestamp(rc);
+
+                    if (checkTimestamp(timestamp)) {
+                        s_val = (char*)std::to_string(StepCommand_getState((StepCommand)rc)).c_str();
+                        s_select = (char*)(StepCommand_isSelect((StepCommand)rc) ? "1" : "0");
+
+                        parameters[2] = s_val;
+                        parameters[3] = s_select;
+
+                        parameterCount = 4;
+
+                        m_oper((char*)"StepCommandWithCP56Time2a", 4, parameters, DestinationBroadcast, NULL);
+                    }
+                    else {
+                        return false;
+                    }
+                }
+                break;
+
+            case C_SE_NA_1:
+                {
+                    SetpointCommandNormalized spn = (SetpointCommandNormalized)command;
+
+                    s_val = (char*)(std::to_string(SetpointCommandNormalized_getValue(spn)).c_str());
+
+                    parameters[2] = s_val;
+
+                    parameterCount = 3;
+
+                    m_oper((char*)"SetpointNormalized", 3, parameters, DestinationBroadcast, NULL);
+                }   
+                break;
+
+            case C_SE_TA_1:
+                {
+                    SetpointCommandNormalizedWithCP56Time2a spn = (SetpointCommandNormalizedWithCP56Time2a)command;
+
+                    CP56Time2a timestamp = SetpointCommandNormalizedWithCP56Time2a_getTimestamp(spn);
+
+                    if (checkTimestamp(timestamp)) {
+                        s_val = (char*)(std::to_string(SetpointCommandNormalized_getValue((SetpointCommandNormalized)spn)).c_str());
+
+                        parameters[2] = s_val;
+
+                        parameterCount = 3;
+
+                        m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, parameters, DestinationBroadcast, NULL);
+                    }
+                    else {
+                        return false;
+                    }
+                }
+                break;
+
+            case C_SE_NB_1:
+                {
+                    SetpointCommandScaled sps = (SetpointCommandScaled)command;
+
+                    s_val = (char*)(std::to_string(SetpointCommandScaled_getValue(sps)).c_str());
+
+                    parameters[2] = s_val;
+
+                    parameterCount = 3;
+
+                    m_oper((char*)"SetpointScaled", 3, parameters, DestinationBroadcast, NULL);
+                }
+                break;
+
+            case C_SE_TB_1:
+                {
+                    SetpointCommandScaledWithCP56Time2a sps = (SetpointCommandScaledWithCP56Time2a)command;
+
+
+                    CP56Time2a timestamp = SetpointCommandScaledWithCP56Time2a_getTimestamp(sps);
+
+                    if (checkTimestamp(timestamp)) {
+                        s_val = (char*)(std::to_string(SetpointCommandScaled_getValue((SetpointCommandScaled)sps)).c_str());
+
+                        parameters[2] = s_val;
+
+                        parameterCount = 3;
+
+                        m_oper((char*)"SetpointScaledWithCP56Time2a", 3, parameters, DestinationBroadcast, NULL);
+                    }
+                    else {
+                        return false;
+                    }
+                }
+                break;
+
+            case C_SE_NC_1:
+                {
+                    SetpointCommandShort spf = (SetpointCommandShort)command;
+
+                    s_val = (char*)(std::to_string(SetpointCommandShort_getValue(spf)).c_str());
+
+                    parameters[2] = s_val;
+
+                    parameterCount = 3;
+
+                    m_oper((char*)"SetpointShort", 3, parameters, DestinationBroadcast, NULL);
+                }   
+                break;
+
+            case C_SE_TC_1:
+                {
+                    SetpointCommandShortWithCP56Time2a spf = (SetpointCommandShortWithCP56Time2a)command;
+
+                    CP56Time2a timestamp = SetpointCommandShortWithCP56Time2a_getTimestamp(spf);
+
+                    if (checkTimestamp(timestamp)) {
+                        s_val = (char*)(std::to_string(SetpointCommandShort_getValue((SetpointCommandShort)spf)).c_str());
+
+                        parameters[2] = s_val;
+
+                        parameterCount = 3;
+
+                        m_oper((char*)"SetpointShortWithCP56Time2a", 3, parameters, DestinationBroadcast, NULL);
+                    }
+                    else {
+                        return false;
+                    }
+                }
+                break;
+
+            default:
+
+                m_log->error("Unsupported command type");
+
+                return false;
+        }
+
+        return true;
+    }
+}
 
 /**
  * Send a block of reading to IEC104 Server
@@ -694,6 +1006,30 @@ bool IEC104Server::interrogationHandler(void* parameter,
     return true;
 }
 
+static bool
+isSupportedCommandType(IEC60870_5_TypeID typeId)
+{
+    if (typeId == C_SC_NA_1) return true;
+    if (typeId == C_SC_TA_1) return true;
+    if (typeId == C_DC_NA_1) return true;
+    if (typeId == C_DC_TA_1) return true;
+    if (typeId == C_SE_NA_1) return true;
+    if (typeId == C_SE_NB_1) return true;
+    if (typeId == C_SE_NC_1) return true;
+    if (typeId == C_SE_TA_1) return true;
+    if (typeId == C_SE_TB_1) return true;
+    if (typeId == C_SE_TC_1) return true;
+
+    return false;
+}
+
+bool IEC104Server::checkIfCommandIsConfigured(int ca, int ioa, IEC60870_5_TypeID typeId)
+{
+    //TODO implement check
+
+    return true;
+}
+
 /**
  * Callback handler for ASDU handling
  *
@@ -705,7 +1041,9 @@ bool IEC104Server::interrogationHandler(void* parameter,
 bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                CS101_ASDU asdu)
 {
-    if (CS101_ASDU_getTypeID(asdu) == C_SC_NA_1)
+    IEC104Server* self = (IEC104Server*)parameter;
+
+    if (isSupportedCommandType(CS101_ASDU_getTypeID(asdu)))
     {
         Logger::getLogger()->info("received single command");
 
@@ -713,16 +1051,19 @@ bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
         {
             InformationObject io = CS101_ASDU_getElement(asdu, 0);
 
-            if (InformationObject_getObjectAddress(io) == 5000)
+            //TODO check if command has an allowed OA
+            int ioa = InformationObject_getObjectAddress(io);
+            int ca = CS101_ASDU_getCA(asdu);
+            auto typeId = CS101_ASDU_getTypeID(asdu);
+
+            if (self->checkIfCommandIsConfigured(ca, ioa, typeId))
             {
-                SingleCommand sc = (SingleCommand)io;
-
-                Logger::getLogger()->info(
-                    "IOA: %i switch to %i",
-                    InformationObject_getObjectAddress(io),
-                    SingleCommand_getState(sc));
-
                 CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
+
+                if (self->forwardCommand(asdu, io) == false) {
+                    CS101_ASDU_setNegative(asdu, true);
+                }
+
             }
             else
                 CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_IOA);

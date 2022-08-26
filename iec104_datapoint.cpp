@@ -29,6 +29,33 @@ static std::map<std::string, int> mapAsduTypeId = {
     {"C_SE_TC_1", C_SE_TC_1}
 };
 
+static std::map<int, std::string> mapAsduTypeIdStr = {
+    {M_ME_NB_1, "M_ME_NB_1"},
+    {M_SP_NA_1, "M_SP_NA_1"},
+    {M_SP_TB_1, "M_SP_TB_1"},
+    {M_DP_NA_1, "M_DP_NA_1"},
+    {M_DP_TB_1, "M_DP_TB_1"},
+    {M_ST_NA_1, "M_ST_NA_1"},
+    {M_ST_TB_1, "M_ST_TB_1"},
+    {M_ME_NA_1, "M_ME_NA_1"},
+    {M_ME_TD_1, "M_ME_TD_1"},
+    {M_ME_TE_1, "M_ME_TE_1"},
+    {M_ME_NC_1, "M_ME_NC_1"},
+    {M_ME_TF_1, "M_ME_TF_1"},
+    {C_SC_TA_1, "C_SC_TA_1"},
+    {C_SC_NA_1, "C_SC_NA_1"},
+    {C_DC_TA_1, "C_DC_TA_1"},
+    {C_DC_NA_1, "C_DC_NA_1"},
+    {C_RC_TA_1, "C_RC_TA_1"},
+    {C_RC_NA_1, "C_RC_NA_1"},
+    {C_SE_TA_1, "C_SE_TA_1"},
+    {C_SE_NA_1, "C_SE_NA_1"},
+    {C_SE_TB_1, "C_SE_TB_1"},
+    {C_SE_NB_1, "C_SE_NB_1"},
+    {C_SE_TC_1, "C_SE_TC_1"},
+    {C_SE_NC_1, "C_SE_NC_1"}
+};
+
 int
 IEC104DataPoint::typeIdToDataType(int typeId)
 {
@@ -81,6 +108,11 @@ IEC104DataPoint::typeIdToDataType(int typeId)
 int IEC104DataPoint::getTypeIdFromString(std::string typeIdStr)
 {
     return mapAsduTypeId[typeIdStr];
+}
+
+std::string IEC104DataPoint::getStringFromTypeID(int typeId)
+{
+    return mapAsduTypeIdStr[typeId];
 }
 
 IEC104DataPoint::IEC104DataPoint(std::string label, int ca, int ioa, int type)
