@@ -16,17 +16,29 @@ class IEC104DataPoint
 {
 public:
 
-    IEC104DataPoint(std::string label, int ca, int ioa, int type);
+    IEC104DataPoint(std::string label, int ca, int ioa, int type, bool isCommand);
     ~IEC104DataPoint();
 
+    static bool isSupportedCommandType(int typeId);
+    static bool isCommandWithTimestamp(int typeId);
+    static bool isSupportedMonitoringType(int typeId);
     static int typeIdToDataType(int typeId);
     static int getTypeIdFromString(std::string typeIdStr);
     static std::string getStringFromTypeID(int typeId);
 
+    bool isMonitoringType();
+
+    bool isCommand();
+
+    bool isMatchingCommand(int typeId);
+
     int m_ca;
     int m_ioa;
     int m_type;
+    bool m_isCommand;
     std::string m_label;
+
+    int terminationTimeout; /* termination timeout for commands in ms */
 
     union {
         struct {

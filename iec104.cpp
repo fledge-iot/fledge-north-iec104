@@ -73,12 +73,10 @@ IEC104Server::IEC104Server()
     CS104_Slave_setASDUHandler(m_slave, asduHandler, this);
 
     /* set handler to handle connection requests (optional) */
-    CS104_Slave_setConnectionRequestHandler(m_slave, connectionRequestHandler,
-                                            this);
+    CS104_Slave_setConnectionRequestHandler(m_slave, connectionRequestHandler, this);
 
     /* set handler to track connection events (optional) */
-    CS104_Slave_setConnectionEventHandler(m_slave, connectionEventHandler,
-                                          this);
+    CS104_Slave_setConnectionEventHandler(m_slave, connectionEventHandler, this);
 
     CS104_Slave_start(m_slave);
 }
@@ -838,105 +836,108 @@ void IEC104Server::sendInterrogationResponse(IMasterConnection connection, CS101
     for (it = ld.begin(); it != ld.end(); it++)
     {
         IEC104DataPoint* dp = it->second;
-       
-        printf("  CA: %i IOA: %i type: %i => %s\n", dp->m_ca, dp->m_ioa, dp->m_type, dp->m_label.c_str());
 
-        InformationObject io = NULL;
+        if (dp->isMonitoringType()) {
 
-        //TODO when value not initialized use invalid/non-topical for quality
-        //TODO when the value has no original timestamp then create timestamp when sending
+            printf("  CA: %i IOA: %i type: %i => %s\n", dp->m_ca, dp->m_ioa, dp->m_type, dp->m_label.c_str());
 
-        bool sendWithTimestamp = false;
+            InformationObject io = NULL;
 
-        switch (dp->m_type) {
-            case IEC60870_TYPE_SP:
-                if (sendWithTimestamp) {
-                    sCP56Time2a cpTs;
+            //TODO when value not initialized use invalid/non-topical for quality
+            //TODO when the value has no original timestamp then create timestamp when sending
 
-                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+            bool sendWithTimestamp = false;
 
-                    io = (InformationObject)SinglePointWithCP56Time2a_create((SinglePointWithCP56Time2a)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality, &cpTs);
+            switch (dp->m_type) {
+                case IEC60870_TYPE_SP:
+                    if (sendWithTimestamp) {
+                        sCP56Time2a cpTs;
+
+                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                        io = (InformationObject)SinglePointWithCP56Time2a_create((SinglePointWithCP56Time2a)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality, &cpTs);
+                    }
+                    else  {
+                        io = (InformationObject)SinglePointInformation_create((SinglePointInformation)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality);
+                    }
+                    break;
+
+                case IEC60870_TYPE_DP:
+                    if (sendWithTimestamp) {
+                        sCP56Time2a cpTs;
+
+                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                        io = (InformationObject)DoublePointWithCP56Time2a_create((DoublePointWithCP56Time2a)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality, &cpTs);
+                    }
+                    else {
+                        io = (InformationObject)DoublePointInformation_create((DoublePointInformation)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality);
+                    }
+                    break;
+
+                case IEC60870_TYPE_NORMALIZED:
+                    if (sendWithTimestamp) {
+                        sCP56Time2a cpTs;
+
+                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                        io = (InformationObject)MeasuredValueNormalizedWithCP56Time2a_create((MeasuredValueNormalizedWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality, &cpTs);
+
+                    }
+                    else {
+                        io = (InformationObject)MeasuredValueNormalized_create((MeasuredValueNormalized)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality);
+                    }
+                    break;
+
+                case IEC60870_TYPE_SCALED:
+                    if (sendWithTimestamp) {
+                        sCP56Time2a cpTs;
+
+                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                        io = (InformationObject)MeasuredValueScaledWithCP56Time2a_create((MeasuredValueScaledWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality, &cpTs);
+                    }
+                    else {
+                        io = (InformationObject)MeasuredValueScaled_create((MeasuredValueScaled)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality);
+                    }
+                    break;
+
+                case IEC60870_TYPE_SHORT:
+                    if (sendWithTimestamp) {
+                        sCP56Time2a cpTs;
+
+                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                        io = (InformationObject)MeasuredValueShortWithCP56Time2a_create((MeasuredValueShortWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality, &cpTs);
+                    }
+                    else {
+                        io = (InformationObject)MeasuredValueShort_create((MeasuredValueShort)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality);
+                    }
+                    break;
+
+                case IEC60870_TYPE_STEP_POS:
+                    if (sendWithTimestamp) {
+                        sCP56Time2a cpTs;
+
+                        CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
+
+                        io = (InformationObject)StepPositionWithCP56Time2a_create((StepPositionWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.stepPos.posValue, dp->m_value.stepPos.transient, dp->m_value.stepPos.quality, &cpTs);
+                    }
+                    else {
+                        io = (InformationObject)StepPositionInformation_create((StepPositionInformation)&ioBuf, dp->m_ioa, dp->m_value.stepPos.posValue, dp->m_value.stepPos.transient, dp->m_value.stepPos.quality);
+                    }
+                    break;
+
+            }
+
+            if (io) {
+                if (CS101_ASDU_addInformationObject(newASDU, io) == false) {
+                    IMasterConnection_sendASDU(connection, newASDU);
+
+                    newASDU = CS101_ASDU_initializeStatic(&_asdu, alParams, false, CS101_COT_INTERROGATED_BY_STATION, CS101_ASDU_getOA(asdu), ca, false, false);
+
+                    CS101_ASDU_addInformationObject(newASDU, io);
                 }
-                else  {
-                    io = (InformationObject)SinglePointInformation_create((SinglePointInformation)&ioBuf, dp->m_ioa, (bool)(dp->m_value.sp.value), dp->m_value.sp.quality);
-                }
-                break;
-
-            case IEC60870_TYPE_DP:
-                if (sendWithTimestamp) {
-                    sCP56Time2a cpTs;
-
-                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
-
-                    io = (InformationObject)DoublePointWithCP56Time2a_create((DoublePointWithCP56Time2a)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality, &cpTs);
-                }
-                else {
-                    io = (InformationObject)DoublePointInformation_create((DoublePointInformation)&ioBuf, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality);
-                }
-                break;
-
-            case IEC60870_TYPE_NORMALIZED:
-                if (sendWithTimestamp) {
-                    sCP56Time2a cpTs;
-
-                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
-
-                    io = (InformationObject)MeasuredValueNormalizedWithCP56Time2a_create((MeasuredValueNormalizedWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality, &cpTs);
-
-                }
-                else {
-                    io = (InformationObject)MeasuredValueNormalized_create((MeasuredValueNormalized)&ioBuf, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality);
-                }
-                break;
-
-            case IEC60870_TYPE_SCALED:
-                if (sendWithTimestamp) {
-                    sCP56Time2a cpTs;
-
-                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
-
-                    io = (InformationObject)MeasuredValueScaledWithCP56Time2a_create((MeasuredValueScaledWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality, &cpTs);
-                }
-                else {
-                    io = (InformationObject)MeasuredValueScaled_create((MeasuredValueScaled)&ioBuf, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality);
-                }
-                break;
-
-            case IEC60870_TYPE_SHORT:
-                if (sendWithTimestamp) {
-                    sCP56Time2a cpTs;
-
-                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
-
-                    io = (InformationObject)MeasuredValueShortWithCP56Time2a_create((MeasuredValueShortWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality, &cpTs);
-                }
-                else {
-                    io = (InformationObject)MeasuredValueShort_create((MeasuredValueShort)&ioBuf, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality);
-                }
-                break;
-
-            case IEC60870_TYPE_STEP_POS:
-                if (sendWithTimestamp) {
-                    sCP56Time2a cpTs;
-
-                    CP56Time2a_createFromMsTimestamp(&cpTs, Hal_getTimeInMs());
-
-                    io = (InformationObject)StepPositionWithCP56Time2a_create((StepPositionWithCP56Time2a)&ioBuf, dp->m_ioa, dp->m_value.stepPos.posValue, dp->m_value.stepPos.transient, dp->m_value.stepPos.quality, &cpTs);
-                }
-                else {
-                    io = (InformationObject)StepPositionInformation_create((StepPositionInformation)&ioBuf, dp->m_ioa, dp->m_value.stepPos.posValue, dp->m_value.stepPos.transient, dp->m_value.stepPos.quality);
-                }
-                break;
-
-        }
-
-        if (io) {
-            if (CS101_ASDU_addInformationObject(newASDU, io) == false) {
-                IMasterConnection_sendASDU(connection, newASDU);
-
-                newASDU = CS101_ASDU_initializeStatic(&_asdu, alParams, false, CS101_COT_INTERROGATED_BY_STATION, CS101_ASDU_getOA(asdu), ca, false, false);
-
-                CS101_ASDU_addInformationObject(newASDU, io);
             }
         }
     }
@@ -1027,6 +1028,7 @@ bool IEC104Server::checkIfCommandIsConfigured(int ca, int ioa, IEC60870_5_TypeID
 {
     //TODO implement check
 
+
     return true;
 }
 
@@ -1045,33 +1047,54 @@ bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
 
     if (isSupportedCommandType(CS101_ASDU_getTypeID(asdu)))
     {
-        Logger::getLogger()->info("received single command");
+        Logger::getLogger()->info("received command");
 
         if (CS101_ASDU_getCOT(asdu) == CS101_COT_ACTIVATION)
         {
             InformationObject io = CS101_ASDU_getElement(asdu, 0);
 
-            //TODO check if command has an allowed OA
-            int ioa = InformationObject_getObjectAddress(io);
             int ca = CS101_ASDU_getCA(asdu);
-            auto typeId = CS101_ASDU_getTypeID(asdu);
 
-            if (self->checkIfCommandIsConfigured(ca, ioa, typeId))
-            {
-                CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
+            std::map<int, IEC104DataPoint*> ld = self->m_exchangeDefinitions[ca];
 
-                if (self->forwardCommand(asdu, io) == false) {
-                    CS101_ASDU_setNegative(asdu, true);
+            if (ld.empty() == false) {
+                //TODO check if command has an allowed OA
+
+                int ioa = InformationObject_getObjectAddress(io);       
+
+                IEC104DataPoint* dp = ld[ioa];
+
+                if (dp) {
+
+                    auto typeId = CS101_ASDU_getTypeID(asdu);
+
+                    if (dp->isMatchingCommand(typeId)) {
+                        CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
+
+                        if (self->forwardCommand(asdu, io) == false) {
+                            CS101_ASDU_setNegative(asdu, true);
+                        }
+                    }
+                    else {
+                        self->m_log->warn("Unknown command type");
+                        CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
+                    }
                 }
-
+                else {
+                    self->m_log->warn("Unknown IOA (%i:%i)", ca, ioa);
+                    CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_IOA);
+                }
             }
-            else
-                CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_IOA);
+            else {
+                self->m_log->warn("Unknown CA: %i", ca);
+                CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_CA);
+            }
 
             InformationObject_destroy(io);
         }
-        else
+        else {
             CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_COT);
+        }
 
         IMasterConnection_sendASDU(connection, asdu);
 

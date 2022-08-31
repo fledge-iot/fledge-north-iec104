@@ -58,7 +58,7 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
     if (m_exchangeDefinitions == nullptr)
         m_exchangeDefinitions = new std::map<int, std::map<int, IEC104DataPoint*>>();
 
-        Document document;
+    Document document;
 
     if (document.Parse(const_cast<char*>(exchangeConfig.c_str())).HasParseError()) {
         Logger::getLogger()->fatal("Parsing error in data exchange configuration");
@@ -105,7 +105,7 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
                 string address = protocol[JSON_PROT_ADDR].GetString();
                 string typeIdStr = protocol[JSON_PROT_TYPEID].GetString();
 
-                  printf("  address: %s type: %s\n", address.c_str(), typeIdStr.c_str());
+                printf("  address: %s type: %s\n", address.c_str(), typeIdStr.c_str());
 
                 size_t sepPos = address.find("-");
 
@@ -122,9 +122,19 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
 
                     int dataType = IEC104DataPoint::typeIdToDataType(typeId);
 
-                    IEC104DataPoint* newDp = new IEC104DataPoint(label, ca, ioa, dataType);
+                    bool isCommand = IEC104DataPoint::isSupportedCommandType(typeId);
+                    bool isMonitoring = IEC104DataPoint::isSupportedMonitoringType(typeId);
+
+                    if (isCommand || isMonitoring) {
+                        IEC104DataPoint* newDp = new IEC104DataPoint(label, ca, ioa, dataType, isCommand);
                
-                    (*m_exchangeDefinitions)[ca][ioa] = newDp;
+                        (*m_exchangeDefinitions)[ca][ioa] = newDp;
+                    }
+                    else {
+                        printf("Skip datapoint %i:%i\n", ca, ioa);
+                    }
+
+
                 }
             }
         }

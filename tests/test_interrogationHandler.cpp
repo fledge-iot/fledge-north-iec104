@@ -422,3 +422,41 @@ TEST_F(InterrogationHandlerTest, InterrogationHandlerBroadcastCA)
 
     LinkedList_destroy(receivedASDUs);
 }
+
+TEST_F(InterrogationHandlerTest, InterrogationForUnknownCA)
+{
+    json_config config;
+
+    receivedASDUs = LinkedList_create();
+
+    iec104Server->setJsonConfig(config.protocol_stack, config.exchanged_data, config.tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+    
+    if (result)
+    {
+        CS104_Connection_sendStartDT(connection);
+
+        CS104_Connection_sendInterrogationCommand(
+            connection, CS101_COT_ACTIVATION, 21, IEC60870_QOI_STATION);
+
+        Thread_sleep(500);
+
+        ASSERT_EQ(1, LinkedList_size(receivedASDUs));
+
+        struct sASDU_testInfo* asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 0));
+
+        ASSERT_EQ(21, asdu->ca);
+        ASSERT_EQ(CS101_COT_ACTIVATION_CON, asdu->cot);
+        ASSERT_EQ(1, asdu->numberOfIOs);
+        ASSERT_EQ(C_IC_NA_1, asdu->typeId);
+    }
+    else {
+        ASSERT_TRUE(false);
+    }
+
+    LinkedList_destroy(receivedASDUs);
+}
