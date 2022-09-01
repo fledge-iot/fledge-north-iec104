@@ -35,17 +35,83 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
     if (document.Parse(const_cast<char*>(protocolConfig.c_str())).HasParseError()) {
         Logger::getLogger()->fatal("Parsing error in protocol configuration");
 
+        printf("Parsing error in protocol configuration\n");
+
         return;
     }
 
-    if (!document.IsObject())
+    if (!document.IsObject()) {
         return;
+    }
 
     if (!document.HasMember("protocol_stack") || !document["protocol_stack"].IsObject()) {
         return;
     }
 
     const Value& protocolStack = document["protocol_stack"];
+
+    if (!protocolStack.HasMember("transport_layer") || !protocolStack["transport_layer"].IsObject()) {
+        Logger::getLogger()->fatal("transport layer configuration is missing");
+    
+        return;
+    }
+
+    if (!protocolStack.HasMember("application_layer") || !protocolStack["application_layer"].IsObject()) {
+        Logger::getLogger()->fatal("appplication layer configuration is missing");
+    
+        return;
+    }
+
+    const Value& transportLayer = protocolStack["transport_layer"];
+    const Value& applicationLayer = protocolStack["application_layer"];
+
+    if (transportLayer.HasMember("redundancy_groups")) {
+
+        if (transportLayer["redundancy_groups"].IsArray()) {
+
+            const Value& redundancyGroups = transportLayer["redundancy_groups"];
+
+            for (const Value& redGroup : redundancyGroups.GetArray()) {
+                
+                char* redGroupName = NULL;
+
+                if (redGroup.HasMember("rg_name")) {
+                    if (redGroup["rg_name"].IsString()) {
+                        string rgName = redGroup["rg_name"].GetString();
+
+                        redGroupName = strdup(rgName.c_str());
+                    }
+                }
+
+                CS104_RedundancyGroup redundancyGroup = CS104_RedundancyGroup_create(redGroupName);
+          
+                printf("Adding red group with name: %s\n", redGroupName);
+
+                free(redGroupName);
+
+                if (redGroup.HasMember("connections")) {
+                    if (redGroup["connections"].IsArray()) {
+                        for (const Value& con : redGroup["connections"].GetArray()) {
+                            if (con.HasMember("clt_ip")) {
+                                if (con["clt_ip"].IsString()) {
+                                    string cltIp = con["clt_ip"].GetString();
+
+                                    CS104_RedundancyGroup_addAllowedClient(redundancyGroup, cltIp.c_str());
+
+                                    printf("  add to group: %s\n", cltIp.c_str());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                m_configuredRedundancyGroups.push_back(redundancyGroup);
+            }
+        }
+        else {
+            Logger::getLogger()->fatal("redundancy_groups is not an array -> ignore redundancy groups");
+        }
+    }
 
     m_protocolConfigComplete = true;
 }
@@ -147,6 +213,11 @@ std::map<int, std::map<int, IEC104DataPoint*>>*
 IEC104Config::getExchangeDefinitions()
 {
     return m_exchangeDefinitions;
+}
+
+std::vector<CS104_RedundancyGroup> IEC104Config::getRedGroups()
+{
+    return m_configuredRedundancyGroups;
 }
 
 int IEC104Config::getTcpPort()

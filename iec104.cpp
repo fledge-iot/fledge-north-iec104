@@ -35,6 +35,42 @@ IEC104Server::IEC104Server()
     m_log = Logger::getLogger();
 
     m_config = new IEC104Config();
+}
+
+/**
+ * Destructor for the IEC104 Server object
+ */
+IEC104Server::~IEC104Server() 
+{
+
+    if (m_slave) {
+        CS104_Slave_destroy(m_slave);
+    }
+    else {
+        auto redGroups = m_config->getRedGroups();
+
+        for (CS104_RedundancyGroup redGroup : redGroups) {
+            CS104_RedundancyGroup_destroy(redGroup);
+        }
+    }
+}
+
+IEC104DataPoint* IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
+{
+    IEC104DataPoint* dp = m_exchangeDefinitions[ca][ioa];
+
+    return dp;
+}
+
+void IEC104Server::setJsonConfig(const std::string& stackConfig,
+                                 const std::string& dataExchangeConfig,
+                                const std::string& tlsConfig)
+{
+    m_config->importExchangeConfig(dataExchangeConfig);
+    m_config->importProtocolConfig(stackConfig);
+
+    m_exchangeDefinitions = *m_config->getExchangeDefinitions();
+
 
     /* create a new slave/server instance with default connection parameters and
      * default message queue size */
@@ -43,12 +79,6 @@ IEC104Server::IEC104Server()
     m_oper = NULL;
 
     CS104_Slave_setLocalAddress(m_slave, "0.0.0.0");
-
-    /* Set mode to a single redundancy group
-     * NOTE: library has to be compiled with
-     * CONFIG_CS104_SUPPORT_SERVER_MODE_SINGLE_REDUNDANCY_GROUP enabled (=1)
-     */
-    CS104_Slave_setServerMode(m_slave, CS104_MODE_SINGLE_REDUNDANCY_GROUP);
 
     /* when you have to tweak the APCI parameters (t0-t3, k, w) you can access
      * them here */
@@ -78,29 +108,20 @@ IEC104Server::IEC104Server()
     /* set handler to track connection events (optional) */
     CS104_Slave_setConnectionEventHandler(m_slave, connectionEventHandler, this);
 
+    auto redGroups = m_config->getRedGroups();
+
+    if (redGroups.size() == 0) {
+        CS104_Slave_setServerMode(m_slave, CS104_MODE_SINGLE_REDUNDANCY_GROUP);
+    }
+    else {
+        CS104_Slave_setServerMode(m_slave, CS104_MODE_MULTIPLE_REDUNDANCY_GROUPS);
+
+        for (CS104_RedundancyGroup redGroup : redGroups) {
+            CS104_Slave_addRedundancyGroup(m_slave, redGroup);
+        }
+    }
+
     CS104_Slave_start(m_slave);
-}
-
-/**
- * Destructor for the IEC104 Server object
- */
-IEC104Server::~IEC104Server() {}
-
-IEC104DataPoint* IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
-{
-    IEC104DataPoint* dp = m_exchangeDefinitions[ca][ioa];
-
-    return dp;
-}
-
-void IEC104Server::setJsonConfig(const std::string& stackConfig,
-                                 const std::string& dataExchangeConfig,
-                                const std::string& tlsConfig)
-{
-    m_config->importExchangeConfig(dataExchangeConfig);
-    m_config->importProtocolConfig(stackConfig);
-
-    m_exchangeDefinitions = *m_config->getExchangeDefinitions();
 }
 
 /**
