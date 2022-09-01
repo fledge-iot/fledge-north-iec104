@@ -1151,23 +1151,28 @@ void IEC104Server::connectionEventHandler(void* parameter,
                                           IMasterConnection con,
                                           CS104_PeerConnectionEvent event)
 {
+    char ipAddrBuf[100];
+    ipAddrBuf[0] = 0;
+
+    IMasterConnection_getPeerAddress(con, ipAddrBuf, 100);
+
     if (event == CS104_CON_EVENT_CONNECTION_OPENED)
     {
-        Logger::getLogger()->info("Connection opened (%p)", con);
-        printf("Connection opened\n");
+        Logger::getLogger()->info("Connection opened (%s)", ipAddrBuf);
+        printf("Connection opened from %s\n", ipAddrBuf);
     }
     else if (event == CS104_CON_EVENT_CONNECTION_CLOSED)
     {
-        Logger::getLogger()->info("Connection closed (%p)", con);
-        printf("Connection closed\n");
+        Logger::getLogger()->info("Connection closed (%s)", ipAddrBuf);
+        printf("Connection closed from %s\n", ipAddrBuf);
     }
     else if (event == CS104_CON_EVENT_ACTIVATED)
     {
-        Logger::getLogger()->info("Connection activated (%p)", con);
+        Logger::getLogger()->info("Connection activated (%s)", ipAddrBuf);
     }
     else if (event == CS104_CON_EVENT_DEACTIVATED)
     {
-        Logger::getLogger()->info("Connection deactivated (%p)", con);
+        Logger::getLogger()->info("Connection deactivated (%s)", ipAddrBuf);
     }
 }
 
