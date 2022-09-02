@@ -71,19 +71,29 @@ void IEC104Server::setJsonConfig(const std::string& stackConfig,
 
     m_exchangeDefinitions = *m_config->getExchangeDefinitions();
 
-
-    /* create a new slave/server instance with default connection parameters and
-     * default message queue size */
-    m_slave = CS104_Slave_create(10, 10);
+    m_slave = CS104_Slave_create(500, 100);
 
     m_oper = NULL;
 
-    CS104_Slave_setLocalAddress(m_slave, "0.0.0.0");
+    CS104_Slave_setLocalPort(m_slave, m_config->TcpPort());
 
-    /* when you have to tweak the APCI parameters (t0-t3, k, w) you can access
-     * them here */
+    m_log->info("TCP/IP parameters:");
+    m_log->info("  TCP port: %i", m_config->TcpPort());
+    
+    if (m_config->bindOnIp()) {
+        CS104_Slave_setLocalAddress(m_slave, m_config->GetLocalIP());
+        m_log->info("  IP address: %s", m_config->GetLocalIP());
+    }
+
     CS104_APCIParameters apciParams =
         CS104_Slave_getConnectionParameters(m_slave);
+
+    apciParams->k = m_config->K();
+    apciParams->w = m_config->W();
+    apciParams->t0 = m_config->T0(),
+    apciParams->t1 = m_config->T1();
+    apciParams->t2 = m_config->T2();
+    apciParams->t3 = m_config->T3();
 
     m_log->info("APCI parameters:");
     m_log->info("  t0: %i", apciParams->t0);

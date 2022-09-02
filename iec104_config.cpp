@@ -1,3 +1,5 @@
+#include <arpa/inet.h>
+
 #include "iec104_config.hpp"
 
 using namespace rapidjson;
@@ -6,7 +8,6 @@ using namespace rapidjson;
 #define JSON_DATAPOINTS "datapoints"
 #define JSON_PROTOCOLS "protocols"
 #define JSON_LABEL "label"
-
 
 #define PROTOCOL_IEC104 "iec104"
 #define JSON_PROT_NAME "name"
@@ -23,6 +24,16 @@ IEC104Config::IEC104Config(const string& protocolConfig, const string& exchangeC
 {
     importProtocolConfig(protocolConfig);
     importExchangeConfig(exchangeConfig);
+}
+
+bool
+IEC104Config::isValidIPAddress(const string& addrStr)
+{
+    // see https://stackoverflow.com/questions/318236/how-do-you-validate-that-a-string-is-a-valid-ipv4-address-in-c
+    struct sockaddr_in sa;
+    int result = inet_pton(AF_INET, addrStr.c_str(), &(sa.sin_addr));
+
+    return (result == 1);
 }
 
 void
@@ -96,9 +107,16 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                                 if (con["clt_ip"].IsString()) {
                                     string cltIp = con["clt_ip"].GetString();
 
-                                    CS104_RedundancyGroup_addAllowedClient(redundancyGroup, cltIp.c_str());
+                                    if (isValidIPAddress(cltIp)) {
+                                        CS104_RedundancyGroup_addAllowedClient(redundancyGroup, cltIp.c_str());
 
-                                    printf("  add to group: %s\n", cltIp.c_str());
+                                        printf("  add to group: %s\n", cltIp.c_str());
+                                    }
+                                    else {
+                                        printf("  %s is not a valid IP address -> ignore\n", cltIp.c_str());
+                                        Logger::getLogger()->error("s is not a valid IP address -> ignore", cltIp.c_str());
+                                    }
+
                                 }
                             }
                         }
@@ -110,6 +128,161 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
         }
         else {
             Logger::getLogger()->fatal("redundancy_groups is not an array -> ignore redundancy groups");
+        }
+    }
+
+    if (transportLayer.HasMember("port")) {
+        if (transportLayer["port"].IsInt()) {
+            int tcpPort = transportLayer["port"].GetInt();
+
+            if (tcpPort > 0 && tcpPort < 65536) {
+                m_tcpPort = tcpPort;
+            }
+            else {
+                Logger::getLogger()->warn("transport_layer.port value out of range-> using default port");
+            }
+        }
+        else {
+            printf("transport_layer.port has invalid type -> using default port\n");
+            Logger::getLogger()->warn("transport_layer.port has invalid type -> using default port");
+        }
+    }
+
+    if (transportLayer.HasMember("k_value")) {
+        if (transportLayer["k_value"].IsInt()) {
+            int kValue = transportLayer["k_value"].GetInt();
+
+            if (kValue > 0 && kValue < 32768) {
+                m_k = kValue;
+            }
+            else {
+                Logger::getLogger()->warn("transport_layer.k_value value out of range-> using default value");
+            }
+        }
+        else {
+            printf("transport_layer.k_value has invalid type -> using default value\n");
+            Logger::getLogger()->warn("transport_layer.k_value has invalid type -> using default value");
+        }
+    }
+
+    if (transportLayer.HasMember("w_value")) {
+        if (transportLayer["w_value"].IsInt()) {
+            int wValue = transportLayer["w_value"].GetInt();
+
+            if (wValue > 0 && wValue < 32768) {
+                m_w = wValue;
+            }
+            else {
+                Logger::getLogger()->warn("transport_layer.w_value value out of range-> using default value");
+            }
+        }
+        else {
+            printf("transport_layer.w_value has invalid type -> using default value\n");
+            Logger::getLogger()->warn("transport_layer.w_value has invalid type -> using default value");
+        }
+    }
+
+    if (transportLayer.HasMember("t0_timeout")) {
+        if (transportLayer["t0_timeout"].IsInt()) {
+            int t0Timeout = transportLayer["t0_timeout"].GetInt();
+
+            if (t0Timeout > 0 && t0Timeout < 256) {
+                m_t0 = t0Timeout;
+            }
+            else {
+                Logger::getLogger()->warn("transport_layer.t0_timeout value out of range-> using default value");
+            }
+        }
+        else {
+            printf("transport_layer.t0_timeout has invalid type -> using default value\n");
+            Logger::getLogger()->warn("transport_layer.t0_timeout has invalid type -> using default value");
+        }
+    }
+
+    if (transportLayer.HasMember("t1_timeout")) {
+        if (transportLayer["t1_timeout"].IsInt()) {
+            int t1Timeout = transportLayer["t1_timeout"].GetInt();
+
+            if (t1Timeout > 0 && t1Timeout < 256) {
+                m_t1 = t1Timeout;
+            }
+            else {
+                Logger::getLogger()->warn("transport_layer.t1_timeout value out of range-> using default value");
+            }
+        }
+        else {
+            printf("transport_layer.t1_timeout has invalid type -> using default value\n");
+            Logger::getLogger()->warn("transport_layer.t1_timeout has invalid type -> using default value");
+        }
+    }
+
+    if (transportLayer.HasMember("t2_timeout")) {
+        if (transportLayer["t2_timeout"].IsInt()) {
+            int t2Timeout = transportLayer["t2_timeout"].GetInt();
+
+            if (t2Timeout > 0 && t2Timeout < 256) {
+                m_t2 = t2Timeout;
+            }
+            else {
+                Logger::getLogger()->warn("transport_layer.t2_timeout value out of range-> using default value");
+            }
+        }
+        else {
+            printf("transport_layer.t2_timeout has invalid type -> using default value\n");
+            Logger::getLogger()->warn("transport_layer.t2_timeout has invalid type -> using default value");
+        }
+    }
+
+    if (transportLayer.HasMember("t3_timeout")) {
+        if (transportLayer["t3_timeout"].IsInt()) {
+            int t3Timeout = transportLayer["t3_timeout"].GetInt();
+
+            if (t3Timeout > -1) {
+                m_t3 = t3Timeout;
+            }
+            else {
+                Logger::getLogger()->warn("transport_layer.t3_timeout value out of range-> using default value");
+            }
+        }
+        else {
+            printf("transport_layer.t3_timeout has invalid type -> using default value\n");
+            Logger::getLogger()->warn("transport_layer.t3_timeout has invalid type -> using default value");
+        }
+    }
+
+    if (transportLayer.HasMember("bind_on_ip")) {
+        if (transportLayer["bind_on_ip"].IsBool()) {
+            m_bindOnIp = transportLayer["bind_on_ip"].GetBool();
+        }
+        else {
+            printf("transport_layer.bind_on_ip has invalid type -> using default value\n");
+            Logger::getLogger()->warn("transport_layer.bind_on_ip has invalid type -> using default value");
+        }
+    }
+
+    if (transportLayer.HasMember("tls")) {
+        if (transportLayer["tls"].IsBool()) {
+            m_useTls = transportLayer["tls"].GetBool();
+        }
+        else {
+            printf("transport_layer.tls has invalid type -> not using TLS\n");
+            Logger::getLogger()->warn("transport_layer.tls has invalid type -> not using TLS");
+        }
+    }
+
+    if (transportLayer.HasMember("srv_ip")) {
+        if (transportLayer["srv_ip"].IsString()) {
+
+            if (isValidIPAddress(transportLayer["srv_ip"].GetString())) {
+                m_ip = transportLayer["srv_ip"].GetString();
+
+                printf("Using local IP address: %s\n", m_ip.c_str());
+            }
+            else {
+                printf("transport_layer.srv_ip is not a valid IP address -> ignore\n");
+                Logger::getLogger()->warn("transport_layer.srv_ip has invalid type -> not using TLS");
+            }
+
         }
     }
 
@@ -199,8 +372,6 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
                     else {
                         printf("Skip datapoint %i:%i\n", ca, ioa);
                     }
-
-
                 }
             }
         }
@@ -220,7 +391,13 @@ std::vector<CS104_RedundancyGroup> IEC104Config::getRedGroups()
     return m_configuredRedundancyGroups;
 }
 
-int IEC104Config::getTcpPort()
+int IEC104Config::TcpPort()
 {
-    return 2404;
+    if (m_tcpPort == -1) {
+        //TODO check for TLS
+        return 2404;
+    }
+    else {
+        return m_tcpPort;
+    }
 }
