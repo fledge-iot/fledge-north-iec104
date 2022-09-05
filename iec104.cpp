@@ -103,6 +103,17 @@ void IEC104Server::setJsonConfig(const std::string& stackConfig,
     m_log->info("  k: %i", apciParams->k);
     m_log->info("  w: %i", apciParams->w);
 
+    CS101_AppLayerParameters appLayerParams =
+        CS104_Slave_getAppLayerParameters(m_slave);
+
+    if (m_config->AsduSize() == 0)
+        appLayerParams->maxSizeOfASDU = 253;
+    else
+        appLayerParams->maxSizeOfASDU = m_config->AsduSize();
+
+    appLayerParams->sizeOfCA = m_config->CaSize();
+    appLayerParams->sizeOfIOA = m_config->IOASize();
+
     /* set the callback handler for the clock synchronization command */
     CS104_Slave_setClockSyncHandler(m_slave, clockSyncHandler, this);
 

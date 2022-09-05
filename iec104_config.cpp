@@ -286,6 +286,70 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
         }
     }
 
+    if (applicationLayer.HasMember("ca_asdu_size")) {
+        if (applicationLayer["ca_asdu_size"].IsInt()) {
+            int caSize = applicationLayer["ca_asdu_size"].GetInt();
+
+            if (caSize > 0 && caSize < 3) {
+                m_caSize = caSize;
+            }
+            else {
+                printf("application_layer.ca_asdu_size has invalid value -> using default value (2)\n");
+                Logger::getLogger()->warn("application_layer.ca_asdu_size has invalid value -> using default value (2");
+            }
+        }
+        else {
+            printf("application_layer.ca_asdu_size has invalid type -> using default value (2)\n");
+            Logger::getLogger()->warn("application_layer.ca_asdu_size has invalid type -> using default value (2)");
+        }
+    }
+
+    if (applicationLayer.HasMember("ioaddr_size")) {
+        if (applicationLayer["ioaddr_size"].IsInt()) {
+            int ioaSize = applicationLayer["ioaddr_size"].GetInt();
+
+            if (ioaSize > 0 && ioaSize < 4) {
+                m_ioaSize = ioaSize;
+            }
+            else {
+                printf("application_layer.ioaddr_size has invalid value -> using default value (3)\n");
+                Logger::getLogger()->warn("application_layer.ioaddr_size has invalid value -> using default value (3)");
+            }
+        }
+        else {
+            printf("application_layer.ioaddr_size has invalid type -> using default value (3)\n");
+            Logger::getLogger()->warn("application_layer.ioaddr_size has invalid type -> using default value (3)");
+        }
+    }
+
+    if (applicationLayer.HasMember("asdu_size")) {
+        if (applicationLayer["asdu_size"].IsInt()) {
+            int asduSize = applicationLayer["asdu_size"].GetInt();
+
+            if (asduSize == 0 || (asduSize > 10 && asduSize < 254)) {
+                m_asduSize = asduSize;
+            }
+            else {
+                printf("application_layer.asdu_size has invalid value -> using default value (3)\n");
+                Logger::getLogger()->warn("application_layer.asdu_size has invalid value -> using default value (3)");
+            }
+        }
+        else {
+            printf("application_layer.asdu_size has invalid type -> using default value (3)\n");
+            Logger::getLogger()->warn("application_layer.asdu_size has invalid type -> using default value (3)");
+        }
+    }
+
+    if (applicationLayer.HasMember("time_sync")) {
+        if (applicationLayer["time_sync"].IsBool()) {
+            m_timeSync = applicationLayer["time_sync"].GetBool();
+        }
+        else {
+            printf("application_layer.time_sync has invalid type -> using default value (false)\n");
+            Logger::getLogger()->warn("application_layer.time_sync has invalid type -> using default value (false)");
+        }
+    }
+ 
     m_protocolConfigComplete = true;
 }
 

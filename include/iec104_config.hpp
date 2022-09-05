@@ -37,6 +37,10 @@ public:
     int UseTLS() {return m_useTls;};
     const char* GetLocalIP() {return m_ip.c_str();};
 
+    int CaSize() {return m_caSize;};
+    int IOASize() {return m_ioaSize;};
+    int AsduSize() {return m_asduSize;};
+
 private:
 
     static bool isValidIPAddress(const string& addrStr);
@@ -54,12 +58,17 @@ private:
     int m_t2 = 10;
     int m_t3 = 20;
 
+    int m_caSize = 2;
+    int m_ioaSize = 3;
+    int m_asduSize = 0;
+
+    bool m_timeSync = false;
+
     string m_ip;
 
     std::vector<CS104_RedundancyGroup> m_configuredRedundancyGroups;
 
     std::map<int, std::map<int, IEC104DataPoint*>>* m_exchangeDefinitions = nullptr;
-
 };
 
 #endif /* IEC104_CONFIG_H */
