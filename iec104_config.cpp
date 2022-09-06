@@ -250,16 +250,6 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
         }
     }
 
-    if (transportLayer.HasMember("bind_on_ip")) {
-        if (transportLayer["bind_on_ip"].IsBool()) {
-            m_bindOnIp = transportLayer["bind_on_ip"].GetBool();
-        }
-        else {
-            printf("transport_layer.bind_on_ip has invalid type -> using default value\n");
-            Logger::getLogger()->warn("transport_layer.bind_on_ip has invalid type -> using default value");
-        }
-    }
-
     if (transportLayer.HasMember("tls")) {
         if (transportLayer["tls"].IsBool()) {
             m_useTls = transportLayer["tls"].GetBool();
@@ -277,6 +267,8 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_ip = transportLayer["srv_ip"].GetString();
 
                 printf("Using local IP address: %s\n", m_ip.c_str());
+
+                m_bindOnIp = true;
             }
             else {
                 printf("transport_layer.srv_ip is not a valid IP address -> ignore\n");
@@ -347,6 +339,39 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
         else {
             printf("application_layer.time_sync has invalid type -> using default value (false)\n");
             Logger::getLogger()->warn("application_layer.time_sync has invalid type -> using default value (false)");
+        }
+    }
+
+    if (applicationLayer.HasMember("filter_list")) {
+        if (applicationLayer["filter_list"].IsArray()) {
+
+            for (const Value& filter : applicationLayer["filter_list"].GetArray()) {
+                if (filter.IsObject()) {
+                    if (filter.HasMember("orig_addr")) {
+                        if (filter["orig_addr"].IsInt()) {
+                            int oaValue = filter["orig_addr"].GetInt();
+
+                            if (oaValue >= 0 && oaValue < 256) {
+                                m_allowedOriginators[oaValue] = oaValue;
+                                m_filterOriginators = true;
+                            }
+                            else {
+                                printf("application_layer.filter_list: invalid OA address value\n");
+                                Logger::getLogger()->error("application_layer.filter_list: invalid OA address value");
+                            }
+                        }
+                    }
+                }
+                else {
+                    printf("application_layer.filter_list element not an object\n");
+                    Logger::getLogger()->error("application_layer.filter_list element not an object");
+                }
+            }
+                
+        }
+        else {
+            printf("application_layer.filter_list is not an array\n");
+            Logger::getLogger()->error("application_layer.filter_list is not an array");
         }
     }
  
@@ -463,5 +488,20 @@ int IEC104Config::TcpPort()
     }
     else {
         return m_tcpPort;
+    }
+}
+
+bool IEC104Config::IsOriginatorAllowed(int oa)
+{
+    if (m_filterOriginators) {
+        if (m_allowedOriginators.count(oa) > 0)
+            return true;
+        else {
+            printf("OA %i not allowed!\n", oa);
+            return false;
+        }
+    }
+    else {
+        return true;
     }
 }

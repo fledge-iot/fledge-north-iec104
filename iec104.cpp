@@ -123,10 +123,10 @@ void IEC104Server::setJsonConfig(const std::string& stackConfig,
     /* set handler for other message types */
     CS104_Slave_setASDUHandler(m_slave, asduHandler, this);
 
-    /* set handler to handle connection requests (optional) */
+    /* set handler to handle connection requests */
     CS104_Slave_setConnectionRequestHandler(m_slave, connectionRequestHandler, this);
 
-    /* set handler to track connection events (optional) */
+    /* set handler to track connection events */
     CS104_Slave_setConnectionEventHandler(m_slave, connectionEventHandler, this);
 
     auto redGroups = m_config->getRedGroups();
@@ -634,8 +634,6 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
  */
 uint32_t IEC104Server::send(const vector<Reading*>& readings)
 {
-    printf("IEC104Server::send\n");
-
     if (CS104_Slave_isRunning(m_slave) == false)
     {
         m_log->error("Failed to send data: server not running");
@@ -651,10 +649,7 @@ uint32_t IEC104Server::send(const vector<Reading*>& readings)
         vector<Datapoint*>& dataPoints = (*reading)->getReadingData();
         string assetName = (*reading)->getAssetName();
 
-        printf("Reading(asset: %s)\n", assetName.c_str());
-
         for (Datapoint* dp : dataPoints) {
-            printf("  name: %s\n", dp->getName().c_str());
 
             if (dp->getName() == "data_object") {
               
@@ -832,15 +827,35 @@ bool IEC104Server::clockSyncHandler(void* parameter,
                                     IMasterConnection connection,
                                     CS101_ASDU asdu, CP56Time2a newTime)
 {
-    Logger::getLogger()->info("Process time sync command with time ");
+    IEC104Server* self = (IEC104Server*)parameter;
+
+    Logger::getLogger()->info("Received time sync command with time:");
+
     printCP56Time2a(newTime);
 
-    uint64_t newSystemTimeInMs = CP56Time2a_toMsTimestamp(newTime);
+    if (self->m_config->TimeSync()) {
+        uint64_t newSystemTimeInMs = CP56Time2a_toMsTimestamp(newTime);
 
-    /* Set time for ACT_CON message */
-    CP56Time2a_setFromMsTimestamp(newTime, Hal_getTimeInMs());
+        /* TODO time as local time or UTC time? */
+        nsSinceEpoch nsTime = newSystemTimeInMs * 10000000LLU;
 
-    /* update system time here */
+        if (Hal_setTimeInNs(nsTime)) {
+            Logger::getLogger()->info("Time sync success");
+        }
+        else {
+            printf("Time sync failed\n");
+            Logger::getLogger()->error("Time sync failed");
+        }
+
+        /* Set time for ACT_CON message */
+        CP56Time2a_setFromMsTimestamp(newTime, Hal_getTimeInMs());
+    }
+    else {
+        Logger::getLogger()->warn("Time sync disabled -> ignore time sync command");
+
+        /* ignore time -> send negative response */
+        CS101_ASDU_setNegative(asdu, true);
+    }
 
     return true;
 }
@@ -1100,31 +1115,36 @@ bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
             std::map<int, IEC104DataPoint*> ld = self->m_exchangeDefinitions[ca];
 
             if (ld.empty() == false) {
-                //TODO check if command has an allowed OA
+                /* check if command has an allowed OA */
+                if (self->m_config->IsOriginatorAllowed(CS101_ASDU_getOA(asdu))) {
 
-                int ioa = InformationObject_getObjectAddress(io);       
+                    int ioa = InformationObject_getObjectAddress(io);       
 
-                IEC104DataPoint* dp = ld[ioa];
+                    IEC104DataPoint* dp = ld[ioa];
 
-                if (dp) {
+                    if (dp) {
 
-                    auto typeId = CS101_ASDU_getTypeID(asdu);
+                        auto typeId = CS101_ASDU_getTypeID(asdu);
 
-                    if (dp->isMatchingCommand(typeId)) {
-                        CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
+                        if (dp->isMatchingCommand(typeId)) {
+                            CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
 
-                        if (self->forwardCommand(asdu, io) == false) {
-                            CS101_ASDU_setNegative(asdu, true);
+                            if (self->forwardCommand(asdu, io) == false) {
+                                CS101_ASDU_setNegative(asdu, true);
+                            }
+                        }
+                        else {
+                            self->m_log->warn("Unknown command type");
+                            CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
                         }
                     }
                     else {
-                        self->m_log->warn("Unknown command type");
-                        CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
+                        self->m_log->warn("Unknown IOA (%i:%i)", ca, ioa);
+                        CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_IOA);
                     }
                 }
                 else {
-                    self->m_log->warn("Unknown IOA (%i:%i)", ca, ioa);
-                    CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_IOA);
+                    self->m_log->warn("Originator address %i not allowed", CS101_ASDU_getOA(asdu));
                 }
             }
             else {

@@ -41,6 +41,10 @@ public:
     int IOASize() {return m_ioaSize;};
     int AsduSize() {return m_asduSize;};
 
+    bool TimeSync() {return m_timeSync;};
+
+    bool IsOriginatorAllowed(int oa);
+
 private:
 
     static bool isValidIPAddress(const string& addrStr);
@@ -63,12 +67,14 @@ private:
     int m_asduSize = 0;
 
     bool m_timeSync = false;
+    bool m_filterOriginators = false;
 
     string m_ip;
 
     std::vector<CS104_RedundancyGroup> m_configuredRedundancyGroups;
 
     std::map<int, std::map<int, IEC104DataPoint*>>* m_exchangeDefinitions = nullptr;
+    std::map<int, int> m_allowedOriginators;
 };
 
 #endif /* IEC104_CONFIG_H */
