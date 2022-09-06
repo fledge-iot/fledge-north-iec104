@@ -370,8 +370,11 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
 
         int parameterCount = 2;
 
-        char* s_ca = (char*)std::to_string(CS101_ASDU_getCA(asdu)).c_str();
-        char* s_ioa = (char*)std::to_string(InformationObject_getObjectAddress(command)).c_str();
+        std::string caStr = std::to_string(CS101_ASDU_getCA(asdu));
+        std::string ioaStr = std::to_string(InformationObject_getObjectAddress(command));
+
+        char* s_ca = (char*)caStr.c_str();
+        char* s_ioa = (char*)ioaStr.c_str();
         char* s_val = NULL;
         char* s_select = NULL;
 
