@@ -12,9 +12,7 @@
 
 using namespace std;
 
-typedef struct
-{
-    string protocol_stack = QUOTE({
+static string protocol_stack = QUOTE({
         "protocol_stack" : {
             "name" : "iec104client",
             "version" : "1.0",
@@ -60,7 +58,8 @@ typedef struct
             }
         }
     });
-    string tls = QUOTE({
+
+static string tls = QUOTE({
         "tls_conf:" : {
             "private_key" : "server-key.pem",
             "server_cert" : "server.cer",
@@ -181,7 +180,6 @@ typedef struct
             ]
         }
     });
-} json_config;
 
 // Class to be called in each test, contains fixture to be used in
 class InterrogationHandlerTest : public testing::Test
@@ -257,11 +255,9 @@ static bool test1_ASDUReceivedHandler(void* parameter, int address, CS101_ASDU a
 // Test the callback handler for station interrogation
 TEST_F(InterrogationHandlerTest, InterrogationHandlerSingleCA)
 {
-    json_config config;
-
     receivedASDUs = LinkedList_create();
 
-    iec104Server->setJsonConfig(config.protocol_stack, config.exchanged_data, config.tls);
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
@@ -331,11 +327,9 @@ TEST_F(InterrogationHandlerTest, InterrogationHandlerSingleCA)
 // Test the callback handler for station interrogation
 TEST_F(InterrogationHandlerTest, InterrogationHandlerBroadcastCA)
 {
-    json_config config;
-
     receivedASDUs = LinkedList_create();
 
-    iec104Server->setJsonConfig(config.protocol_stack, config.exchanged_data, config.tls);
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
@@ -425,11 +419,9 @@ TEST_F(InterrogationHandlerTest, InterrogationHandlerBroadcastCA)
 
 TEST_F(InterrogationHandlerTest, InterrogationForUnknownCA)
 {
-    json_config config;
-
     receivedASDUs = LinkedList_create();
 
-    iec104Server->setJsonConfig(config.protocol_stack, config.exchanged_data, config.tls);
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 

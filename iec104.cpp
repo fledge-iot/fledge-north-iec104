@@ -27,9 +27,6 @@ using namespace std;
 
 static bool running = true;
 
-/**
- * Constructor for the IEC104 Server object
- */
 IEC104Server::IEC104Server()
 {
     m_log = Logger::getLogger();
@@ -37,9 +34,6 @@ IEC104Server::IEC104Server()
     m_config = new IEC104Config();
 }
 
-/**
- * Destructor for the IEC104 Server object
- */
 IEC104Server::~IEC104Server() 
 {
 
@@ -316,8 +310,6 @@ void IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTra
 
         CS101_ASDU_destroy(asdu);
     }
-
-
 }
 
 static Datapoint* createStringDatapoint(const std::string& dataname,
@@ -349,6 +341,7 @@ bool IEC104Server::checkTimestamp(CP56Time2a timestamp)
         timeDiff = currentTime - commandTime;
     }
 
+    // TODO use configured parameter instead of hard coded value for allowed time difference
     if (timeDiff > 5000) {
         m_log->warn("Command timestamp is out of valid range -> ignore command");
 
@@ -407,8 +400,6 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
 
             case C_SC_TA_1:
                 {
-                    //TODO command with timestamp -> check validity of timestamp
-
                     SingleCommandWithCP56Time2a sc = (SingleCommandWithCP56Time2a)command;
 
                     CP56Time2a timestamp = SingleCommandWithCP56Time2a_getTimestamp(sc);
