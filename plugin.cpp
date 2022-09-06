@@ -56,7 +56,7 @@ static const char *default_config = QUOTE({
 static PLUGIN_INFORMATION info = {
 	   PLUGIN_NAME,			// Name
 	   VERSION,			    // Version
-	   0,				    // Flags
+	   SP_CONTROL,		    // Flags
 	   PLUGIN_TYPE_NORTH,	// Type
 	   "1.0.0",			    // Interface version
 	   default_config		// Configuration
@@ -77,9 +77,13 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
+    Logger::getLogger()->info("Initializing the plugin");
 
-	IEC104Server *iec104 = new IEC104Server();
-	iec104->configure(configData);
+	IEC104Server* iec104 = new IEC104Server();
+
+    if (iec104) {
+    	iec104->configure(configData);
+    }
 
 	return (PLUGIN_HANDLE)iec104;
 }
@@ -93,6 +97,16 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	IEC104Server *iec104 = (IEC104Server *)handle;
 
 	return iec104->send(readings);
+}
+
+
+void plugin_register(PLUGIN_HANDLE handle,
+		bool ( *write)(const char *name, const char *value, ControlDestination destination, ...),
+		int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...))
+{
+    IEC104Server *iec104 = (IEC104Server *)handle;
+
+    iec104->registerControl(operation);
 }
 
 /**
