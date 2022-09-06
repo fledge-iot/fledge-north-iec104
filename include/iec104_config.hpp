@@ -41,9 +41,14 @@ public:
     int IOASize() {return m_ioaSize;};
     int AsduSize() {return m_asduSize;};
 
+    int AsduQueueSize() {return m_asduQueueSize;};
+
     bool TimeSync() {return m_timeSync;};
 
     bool IsOriginatorAllowed(int oa);
+
+    bool AllowCmdWithTime();
+    bool AllowCmdWithoutTime();
 
 private:
 
@@ -66,8 +71,12 @@ private:
     int m_ioaSize = 3;
     int m_asduSize = 0;
 
+    int m_asduQueueSize = 100;
+
     bool m_timeSync = false;
     bool m_filterOriginators = false;
+
+    int m_allowedCommands = 1; /* 0 - only without timestamp, 1 - only with timestamp, 2 - both */
 
     string m_ip;
 

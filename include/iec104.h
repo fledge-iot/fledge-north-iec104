@@ -55,7 +55,6 @@ private:
     void m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, DatapointValue* value, CP56Time2a ts, uint8_t quality);
 
     bool checkTimestamp(CP56Time2a timestamp);
-    bool checkIfCommandIsConfigured(int ca, int ioa, IEC60870_5_TypeID typeId);
     bool forwardCommand(CS101_ASDU asdu, InformationObject command);
 
     static void printCP56Time2a(CP56Time2a time);

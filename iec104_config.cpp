@@ -374,6 +374,42 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
             Logger::getLogger()->error("application_layer.filter_list is not an array");
         }
     }
+
+    if (applicationLayer.HasMember("asdu_queue_size")) {
+        if (applicationLayer["asdu_queue_size"].IsInt()) {
+            int asduQueueSize = applicationLayer["asdu_queue_size"].GetInt();
+
+            if (asduQueueSize > 0) {
+                m_asduQueueSize = asduQueueSize;
+            }
+            else {
+                printf("application_layer.asdu_queue_size has invalid value -> using default value (100)\n");
+                Logger::getLogger()->warn("application_layer.asdu_queue_size has invalid value -> using default value (100)");
+            }
+        }
+        else {
+            printf("application_layer.asdu_queue_size has invalid type -> using default value (100)\n");
+            Logger::getLogger()->warn("application_layer.asdu_queue_size has invalid type -> using default value (100)");
+        }
+    }
+
+    if (applicationLayer.HasMember("accept_cmd_with_time")) {
+        if (applicationLayer["accept_cmd_with_time"].IsInt()) {
+            int acceptCmdWithTime = applicationLayer["accept_cmd_with_time"].GetInt();
+
+            if (acceptCmdWithTime > -1 && acceptCmdWithTime < 3) {
+                m_allowedCommands = acceptCmdWithTime;
+            }
+            else {
+                printf("application_layer.accept_cmd_with_time has invalid value -> using default: only commands with timestamp allowed\n");
+                Logger::getLogger()->warn("application_layer.accept_cmd_with_time has invalid value -> using default: only commands with timestamp allowed");
+            }
+        }
+        else {
+            printf("application_layer.accept_cmd_with_time has invalid type -> using default: only commands with timestamp allowed\n");
+            Logger::getLogger()->warn("application_layer.accept_cmd_with_time has invalid type -> using default: only commands with timestamp allowed");
+        }
+    }
  
     m_protocolConfigComplete = true;
 }
@@ -503,5 +539,25 @@ bool IEC104Config::IsOriginatorAllowed(int oa)
     }
     else {
         return true;
+    }
+}
+
+bool IEC104Config::AllowCmdWithTime()
+{
+    if (m_allowedCommands == 1 || m_allowedCommands == 2) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+bool IEC104Config::AllowCmdWithoutTime()
+{
+    if (m_allowedCommands == 0 || m_allowedCommands == 2) {
+        return true;
+    }
+    else {
+        return false;
     }
 }

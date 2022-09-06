@@ -71,7 +71,7 @@ void IEC104Server::setJsonConfig(const std::string& stackConfig,
 
     m_exchangeDefinitions = *m_config->getExchangeDefinitions();
 
-    m_slave = CS104_Slave_create(500, 100);
+    m_slave = CS104_Slave_create(m_config->AsduQueueSize(), 100);
 
     m_oper = NULL;
 
@@ -1081,14 +1081,6 @@ isSupportedCommandType(IEC60870_5_TypeID typeId)
     return false;
 }
 
-bool IEC104Server::checkIfCommandIsConfigured(int ca, int ioa, IEC60870_5_TypeID typeId)
-{
-    //TODO implement check
-
-
-    return true;
-}
-
 /**
  * Callback handler for ASDU handling
  *
@@ -1127,10 +1119,30 @@ bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                         auto typeId = CS101_ASDU_getTypeID(asdu);
 
                         if (dp->isMatchingCommand(typeId)) {
-                            CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
 
-                            if (self->forwardCommand(asdu, io) == false) {
-                                CS101_ASDU_setNegative(asdu, true);
+                            bool acceptCommand = true;
+
+                            if (IEC104DataPoint::isCommandWithTimestamp(typeId)) {
+                                if (self->m_config->AllowCmdWithTime() == false) {
+                                    acceptCommand = false;
+                                }
+                            }
+                            else {
+                                if (self->m_config->AllowCmdWithoutTime() == false) {
+                                    acceptCommand = false;
+                                }
+                            }
+
+                            if (acceptCommand) {
+                                CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
+
+                                if (self->forwardCommand(asdu, io) == false) {
+                                    CS101_ASDU_setNegative(asdu, true);
+                                }
+                            }
+                            else {
+                                self->m_log->warn("Unknown command type");
+                                CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID); 
                             }
                         }
                         else {
