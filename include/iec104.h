@@ -8,7 +8,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Akli Rahmoun <akli.rahmoun at rte-france.com>
+ * Authors: Akli Rahmoun <akli.rahmoun at rte-france.com>, Michael Zillgith <michael.zillgith@mz-automation.de>
  */
 
 // clang-format off
@@ -27,8 +27,6 @@
 
 #include "iec104_config.hpp"
 // clang-format on
-
-
 
 class IEC104Server
 {

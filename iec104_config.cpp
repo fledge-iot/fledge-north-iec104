@@ -26,6 +26,28 @@ IEC104Config::IEC104Config(const string& protocolConfig, const string& exchangeC
     importExchangeConfig(exchangeConfig);
 }
 
+void IEC104Config::deleteExchangeDefinitions()
+{
+    if (m_exchangeDefinitions != nullptr) {
+        for (auto const& exchangeDefintions : *m_exchangeDefinitions) {
+            for (auto const& dpPair : exchangeDefintions.second) {
+                IEC104DataPoint* dp = dpPair.second;
+
+                delete dp;
+            }
+        }
+
+        delete m_exchangeDefinitions;
+
+        m_exchangeDefinitions = nullptr;
+    }
+}
+
+IEC104Config::~IEC104Config()
+{
+    deleteExchangeDefinitions();
+}
+
 bool
 IEC104Config::isValidIPAddress(const string& addrStr)
 {
@@ -419,8 +441,9 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
 {
     m_exchangeConfigComplete = false;
 
-    if (m_exchangeDefinitions == nullptr)
-        m_exchangeDefinitions = new std::map<int, std::map<int, IEC104DataPoint*>>();
+    deleteExchangeDefinitions();
+
+    m_exchangeDefinitions = new std::map<int, std::map<int, IEC104DataPoint*>>();
 
     Document document;
 
@@ -503,17 +526,6 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
     }
 
     m_exchangeConfigComplete = true;
-}
-
-std::map<int, std::map<int, IEC104DataPoint*>>*
-IEC104Config::getExchangeDefinitions()
-{
-    return m_exchangeDefinitions;
-}
-
-std::vector<CS104_RedundancyGroup> IEC104Config::getRedGroups()
-{
-    return m_configuredRedundancyGroups;
 }
 
 int IEC104Config::TcpPort()

@@ -166,6 +166,8 @@ protected:
     {
         CS104_Connection_destroy(connection);
         iec104Server->stop();
+
+        delete iec104Server;
     }
 };
 
@@ -231,6 +233,9 @@ TEST_F(ControlTest, CreateReading)
     readings.push_back(reading);
 
     iec104Server->send(readings);
+
+    delete reading;
+    delete dataobjects;
 }
 
 TEST_F(ControlTest, ReceiveSinglePointCommand)

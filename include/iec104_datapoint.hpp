@@ -17,7 +17,7 @@ class IEC104DataPoint
 public:
 
     IEC104DataPoint(std::string label, int ca, int ioa, int type, bool isCommand);
-    ~IEC104DataPoint();
+    ~IEC104DataPoint() {};
 
     static bool isSupportedCommandType(int typeId);
     static bool isCommandWithTimestamp(int typeId);

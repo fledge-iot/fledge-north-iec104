@@ -27,30 +27,25 @@ using namespace std;
 
 static bool running = true;
 
-IEC104Server::IEC104Server()
+IEC104Server::IEC104Server() :
+    m_config(new IEC104Config()),
+    m_log(Logger::getLogger())
 {
-    m_log = Logger::getLogger();
-
-    m_config = new IEC104Config();
 }
 
 IEC104Server::~IEC104Server() 
 {
-
     if (m_slave) {
         CS104_Slave_destroy(m_slave);
     }
-    else {
-        auto redGroups = m_config->getRedGroups();
 
-        for (CS104_RedundancyGroup redGroup : redGroups) {
-            CS104_RedundancyGroup_destroy(redGroup);
-        }
-    }
+    delete m_config;
 }
 
 IEC104DataPoint* IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
 {
+    (void)typeId;
+
     IEC104DataPoint* dp = m_exchangeDefinitions[ca][ioa];
 
     return dp;
@@ -84,7 +79,7 @@ void IEC104Server::setJsonConfig(const std::string& stackConfig,
 
     apciParams->k = m_config->K();
     apciParams->w = m_config->W();
-    apciParams->t0 = m_config->T0(),
+    apciParams->t0 = m_config->T0();
     apciParams->t1 = m_config->T1();
     apciParams->t2 = m_config->T2();
     apciParams->t3 = m_config->T3();
@@ -125,7 +120,7 @@ void IEC104Server::setJsonConfig(const std::string& stackConfig,
 
     auto redGroups = m_config->getRedGroups();
 
-    if (redGroups.size() == 0) {
+    if (redGroups.empty()) {
         CS104_Slave_setServerMode(m_slave, CS104_MODE_SINGLE_REDUNDANCY_GROUP);
     }
     else {
@@ -634,7 +629,6 @@ uint32_t IEC104Server::send(const vector<Reading*>& readings)
         return 0;
     }
 
-    int16_t value;
     int n = 0;
 
     for (auto reading = readings.cbegin(); reading != readings.cend();
@@ -1232,5 +1226,6 @@ void IEC104Server::stop()
     {
         CS104_Slave_stop(m_slave);
         CS104_Slave_destroy(m_slave);
+        m_slave = nullptr;
     }
 }
