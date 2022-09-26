@@ -155,6 +155,8 @@ protected:
         uint16_t port = IEC_60870_5_104_DEFAULT_PORT;
         // Create connection
         connection = CS104_Connection_create(ip, port);
+
+        CS104_Connection_setASDUReceivedHandler(connection, m_asduReceivedHandler, this);
     }
 
     static int operateHandlerCalled;
@@ -169,7 +171,35 @@ protected:
 
         delete iec104Server;
     }
+
+    void ForwardCommandAck(const char* cmdName, const char* type, int ca, int ioa, int cot, bool negative);
+
+    int asduHandlerCalled = 0;
+    int actConReceived = 0;
+    int actTermReceived = 0;
+
+    static bool m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu);
 };
+
+bool
+ControlTest::m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu)
+{
+    ControlTest* self = (ControlTest*)parameter;
+
+    self->asduHandlerCalled++;
+
+    printf("CS101_ASDU: type: %i ca: %i cot: %i\n", CS101_ASDU_getTypeID(asdu), CS101_ASDU_getCA(asdu), CS101_ASDU_getCOT(asdu));
+    
+    if (CS101_ASDU_getCOT(asdu) == CS101_COT_ACTIVATION_CON) {
+        self->actConReceived++;
+    }
+
+    if (CS101_ASDU_getCOT(asdu) == CS101_COT_ACTIVATION_TERMINATION) {
+        self->actTermReceived++;
+    }
+
+    return true;
+}
 
 int ControlTest::operateHandlerCalled;
 
@@ -214,6 +244,45 @@ static Datapoint* createDataObject(const char* type, int ca, int ioa, int cot,
     Datapoint* dp = new Datapoint("data_object", dpv);
 
     return dp;
+}
+
+static Datapoint*
+createCommandAck(const char* type, int ca, int ioa, int cot, bool negative)
+{
+    auto* datapoints = new vector<Datapoint*>;
+
+    datapoints->push_back(createDatapoint("do_type", type));
+    datapoints->push_back(createDatapoint("do_ca", (int64_t)ca));
+    datapoints->push_back(createDatapoint("do_oa", (int64_t)0));
+    datapoints->push_back(createDatapoint("do_cot", (int64_t)cot));
+    datapoints->push_back(createDatapoint("do_test", (int64_t)0));
+    datapoints->push_back(createDatapoint("do_negative", (int64_t)negative));
+    datapoints->push_back(createDatapoint("do_ioa", (int64_t)ioa));
+
+    DatapointValue dpv(datapoints, true);
+
+    Datapoint* dp = new Datapoint("data_object", dpv);
+
+    return dp;
+}
+
+void 
+ControlTest::ForwardCommandAck(const char* cmdName, const char* type, int ca, int ioa, int cot, bool negative)
+{
+    auto* dataobjects = new vector<Datapoint*>;
+
+    dataobjects->push_back(createCommandAck(type, ca, ioa, cot, negative));
+
+    Reading* reading = new Reading(std::string(cmdName), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    delete reading;
+    delete dataobjects;
 }
 
 TEST_F(ControlTest, CreateReading)
@@ -299,4 +368,67 @@ TEST_F(ControlTest, ReceiveUnexpectedDoublePointCommand)
     Thread_sleep(500);
 
     ASSERT_EQ(0, operateHandlerCalled);
+}
+
+TEST_F(ControlTest, CommandAckTimeout)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    iec104Server->ActConTimeout(200);
+    iec104Server->ActTermTimeout(200);
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    InformationObject sc = (InformationObject)SingleCommand_create(NULL, 10005, true, false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(1000);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+}
+
+
+TEST_F(ControlTest, CommandActCon)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    iec104Server->ActConTimeout(1000);
+    iec104Server->ActTermTimeout(1000);
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    InformationObject sc = (InformationObject)SingleCommand_create(NULL, 10005, true, false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(200);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    // forward ACT-CON from south side
+    ForwardCommandAck("CM1", "C_SC_NA_1", 45, 10005, CS101_COT_ACTIVATION_CON, false);
+
+    Thread_sleep(200);
+
+    // forward ACT-TERM from south side
+    ForwardCommandAck("CM1", "C_SC_NA_1", 45, 10005, CS101_COT_ACTIVATION_TERMINATION, false);
+
+    Thread_sleep(1000);
+
+    ASSERT_EQ(2, asduHandlerCalled);
+    ASSERT_EQ(1, actConReceived);
+    ASSERT_EQ(1, actTermReceived);
 }

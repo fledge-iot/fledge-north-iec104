@@ -121,7 +121,8 @@ void plugin_shutdown(PLUGIN_HANDLE handle)
 	IEC104Server *iec104 = (IEC104Server *)handle;
 
 	iec104->stop();
-        delete iec104;
+
+    delete iec104;
 }
 
 // End of extern "C"

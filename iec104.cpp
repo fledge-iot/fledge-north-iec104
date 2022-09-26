@@ -35,14 +35,15 @@ IEC104Server::IEC104Server() :
 
 IEC104Server::~IEC104Server() 
 {
-    if (m_slave) {
-        CS104_Slave_destroy(m_slave);
-    }
+    removeAllOutstandingCommands();
+
+    stop();
 
     delete m_config;
 }
 
-IEC104DataPoint* IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
+IEC104DataPoint*
+IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
 {
     (void)typeId;
 
@@ -51,7 +52,8 @@ IEC104DataPoint* IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
     return dp;
 }
 
-void IEC104Server::setJsonConfig(const std::string& stackConfig,
+void
+IEC104Server::setJsonConfig(const std::string& stackConfig,
                                  const std::string& dataExchangeConfig,
                                 const std::string& tlsConfig)
 {
@@ -131,6 +133,9 @@ void IEC104Server::setJsonConfig(const std::string& stackConfig,
         }
     }
 
+    m_started = true;
+    m_monitoringThread = new std::thread(&IEC104Server::_monitoringThread, this);
+
     CS104_Slave_start(m_slave);
 }
 
@@ -138,7 +143,8 @@ void IEC104Server::setJsonConfig(const std::string& stackConfig,
  *
  * @param conf	Fledge configuration category
  */
-void IEC104Server::configure(const ConfigCategory* config)
+void
+IEC104Server::configure(const ConfigCategory* config)
 {
     if (config->itemExists("name"))
         m_name = config->getValue("name");
@@ -164,12 +170,49 @@ void IEC104Server::configure(const ConfigCategory* config)
     setJsonConfig(protocolStack, dataExchange, tlsConfig);
 }
 
-void IEC104Server::registerControl(int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...))
+void
+IEC104Server::registerControl(int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...))
 {
     m_oper = operation;
 }
 
-void IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, DatapointValue* value, CP56Time2a ts, uint8_t quality)
+void
+IEC104Server::_monitoringThread()
+{
+    while (m_started)
+    {
+        /* check timeouts for outstanding commands */
+        m_outstandingCommandsLock.lock();
+
+        std::vector<IEC104OutstandingCommand*>::iterator it;
+
+        uint64_t currentTime = Hal_getTimeInMs();
+
+        for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();)
+        {
+            IEC104OutstandingCommand* outstandingCommand = *it;
+
+            if (outstandingCommand->hasTimedOut(currentTime)) {
+                printf("WARN: command %i:%i (type: %i) timeout -> remove from outstanding commands\n", outstandingCommand->CA(), outstandingCommand->IOA(), outstandingCommand->TypeId());
+                m_log->warn("command %i:%i (type: %i) timeout", outstandingCommand->CA(), outstandingCommand->IOA(), outstandingCommand->TypeId());
+         
+                it = m_outstandingCommands.erase(it);
+
+                delete outstandingCommand;
+            }
+            else {
+                it++;
+            }
+        }
+
+        m_outstandingCommandsLock.unlock();
+
+        Thread_sleep(100);
+    }
+}
+
+void
+IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, DatapointValue* value, CP56Time2a ts, uint8_t quality)
 {
     if (value == nullptr)
         return;
@@ -250,7 +293,8 @@ void IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID type
     }
 }
 
-void IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmission cot, IEC60870_5_TypeID typeId)
+void
+IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmission cot, IEC60870_5_TypeID typeId)
 {
     CS101_ASDU asdu = CS101_ASDU_create(alParams, false, cot, 0, dp->m_ca, false, false);
 
@@ -307,21 +351,24 @@ void IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTra
     }
 }
 
-static Datapoint* createStringDatapoint(const std::string& dataname,
+static Datapoint*
+createStringDatapoint(const std::string& dataname,
                                         std::string value)
 {
     DatapointValue dp_value = DatapointValue(value);
     return new Datapoint(dataname, dp_value);
 }
 
-static Datapoint* createLongDatapoint(const std::string& dataname,
+static Datapoint*
+createLongDatapoint(const std::string& dataname,
                                         long value)
 {
     DatapointValue dp_value = DatapointValue(value);
     return new Datapoint(dataname, dp_value);
 }
 
-bool IEC104Server::checkTimestamp(CP56Time2a timestamp)
+bool
+IEC104Server::checkTimestamp(CP56Time2a timestamp)
 {
     uint64_t currentTime = Hal_getTimeInMs();
 
@@ -347,9 +394,123 @@ bool IEC104Server::checkTimestamp(CP56Time2a timestamp)
     else {
         return true;
     }
- }
+}
 
-bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
+void
+IEC104Server::addToOutstandingCommands(CS101_ASDU asdu, IMasterConnection connection)
+{
+    m_outstandingCommandsLock.lock();
+
+    IEC104OutstandingCommand* outstandingCommand = new IEC104OutstandingCommand(asdu, connection, m_actConTimeout, m_actTermTimeout);
+
+    m_outstandingCommands.push_back(outstandingCommand);
+
+    m_outstandingCommandsLock.unlock();
+}
+
+void
+IEC104Server::removeOutstandingCommands(IMasterConnection connection)
+{
+    m_outstandingCommandsLock.lock();
+
+    std::vector<IEC104OutstandingCommand*>::iterator it;
+
+    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();) 
+    {
+        IEC104OutstandingCommand* outstandingCommand = *it;
+
+        if (outstandingCommand->isSentFromConnection(connection))
+        {
+            m_log->warn("Remove outstanding command to %i:%i while waiting for feedback", outstandingCommand->CA(), outstandingCommand->IOA());
+
+            printf("WARN: Remove outstanding command to %i:%i while waiting for feedback\n", outstandingCommand->CA(), outstandingCommand->IOA());
+
+            it = m_outstandingCommands.erase(it);
+
+            delete outstandingCommand;
+        }
+        else 
+        {
+            it++;
+        }
+    }
+
+    m_outstandingCommandsLock.unlock();
+}
+
+void
+IEC104Server::removeAllOutstandingCommands()
+{
+    m_outstandingCommandsLock.lock();
+
+    std::vector<IEC104OutstandingCommand*>::iterator it;
+
+    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();) 
+    {
+        IEC104OutstandingCommand* outstandingCommand = *it;
+
+        delete outstandingCommand;
+
+        it = m_outstandingCommands.erase(it);
+    }
+
+    m_outstandingCommandsLock.unlock();
+}
+
+void
+IEC104Server::handleActCon(int type, int ca, int ioa)
+{
+    m_outstandingCommandsLock.lock();
+
+    std::vector<IEC104OutstandingCommand*>::iterator it;
+
+    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end(); it++)
+    {
+        IEC104OutstandingCommand* outstandingCommand = *it;
+
+        printf("handleActCon(%i,%i,%i)\n", type, ca, ioa);
+
+        if (outstandingCommand->isMatching(type, ca, ioa)) {
+            outstandingCommand->sendActCon(false);
+            break;
+        }
+    }
+
+    m_outstandingCommandsLock.unlock();
+}
+
+void
+IEC104Server::handleActTerm(int type, int ca, int ioa)
+{
+    m_outstandingCommandsLock.lock();
+
+    std::vector<IEC104OutstandingCommand*>::iterator it;
+
+    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end(); it++)
+    {
+        IEC104OutstandingCommand* outstandingCommand = *it;
+
+        if (outstandingCommand->isMatching(type, ca, ioa))
+        {
+            outstandingCommand->sendActTerm();
+
+            m_log->info("Outstanding command %i:%i sent ACT-TERM -> remove", outstandingCommand->CA(), outstandingCommand->IOA());
+
+            printf("INFO: Outstanding command %i:%i sent ACT-TERM -> remove\n", outstandingCommand->CA(), outstandingCommand->IOA());
+
+            m_outstandingCommands.erase(it);
+
+            delete outstandingCommand;
+
+            break;
+        }
+    }
+
+    m_outstandingCommandsLock.unlock();
+}
+
+bool
+IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMasterConnection connection)
 {
     if (!m_oper) {
         m_log->error("No operation function available");
@@ -392,6 +553,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
 
                     parameterCount = 4;
 
+                    addToOutstandingCommands(asdu, connection);
+
                     m_oper((char*)"SingleCommand", 4, parameters, DestinationBroadcast, NULL);
                 }
                 break;
@@ -410,6 +573,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
                         parameters[3] = s_select;
 
                         parameterCount = 4;
+
+                        addToOutstandingCommands(asdu, connection);
 
                         m_oper((char*)"SingleCommandWithCP56Time2a", 4, parameters, DestinationBroadcast, NULL);
                     }
@@ -432,6 +597,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
 
                     parameterCount = 4;
 
+                    addToOutstandingCommands(asdu, connection);
+
                     m_oper((char*)"DoubleCommand", 4, parameters, DestinationBroadcast, NULL);
                 }
                 break;
@@ -450,6 +617,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
                         parameters[3] = s_select;
 
                         parameterCount = 4;
+
+                        addToOutstandingCommands(asdu, connection);
 
                         m_oper((char*)"DoubleCommandWithCP56Time2a", 4, parameters, DestinationBroadcast, NULL);
                     }
@@ -471,6 +640,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
 
                     parameterCount = 4;
 
+                    addToOutstandingCommands(asdu, connection);
+
                     m_oper((char*)"StepCommand", 4, parameters, DestinationBroadcast, NULL);
                 }
                 break;
@@ -490,6 +661,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
 
                         parameterCount = 4;
 
+                        addToOutstandingCommands(asdu, connection);
+
                         m_oper((char*)"StepCommandWithCP56Time2a", 4, parameters, DestinationBroadcast, NULL);
                     }
                     else {
@@ -508,6 +681,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
 
                     parameterCount = 3;
 
+                    addToOutstandingCommands(asdu, connection);
+
                     m_oper((char*)"SetpointNormalized", 3, parameters, DestinationBroadcast, NULL);
                 }   
                 break;
@@ -524,6 +699,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
                         parameters[2] = s_val;
 
                         parameterCount = 3;
+
+                        addToOutstandingCommands(asdu, connection);
 
                         m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, parameters, DestinationBroadcast, NULL);
                     }
@@ -543,6 +720,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
 
                     parameterCount = 3;
 
+                    addToOutstandingCommands(asdu, connection);
+
                     m_oper((char*)"SetpointScaled", 3, parameters, DestinationBroadcast, NULL);
                 }
                 break;
@@ -560,6 +739,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
                         parameters[2] = s_val;
 
                         parameterCount = 3;
+
+                        addToOutstandingCommands(asdu, connection);
 
                         m_oper((char*)"SetpointScaledWithCP56Time2a", 3, parameters, DestinationBroadcast, NULL);
                     }
@@ -579,6 +760,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
 
                     parameterCount = 3;
 
+                    addToOutstandingCommands(asdu, connection);
+
                     m_oper((char*)"SetpointShort", 3, parameters, DestinationBroadcast, NULL);
                 }   
                 break;
@@ -595,6 +778,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
                         parameters[2] = s_val;
 
                         parameterCount = 3;
+
+                        addToOutstandingCommands(asdu, connection);
 
                         m_oper((char*)"SetpointShortWithCP56Time2a", 3, parameters, DestinationBroadcast, NULL);
                     }
@@ -621,7 +806,8 @@ bool IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command)
  * @param readings	The readings to send
  * @return 		The number of readings sent
  */
-uint32_t IEC104Server::send(const vector<Reading*>& readings)
+uint32_t
+IEC104Server::send(const vector<Reading*>& readings)
 {
     if (CS104_Slave_isRunning(m_slave) == false)
     {
@@ -660,9 +846,8 @@ uint32_t IEC104Server::send(const vector<Reading*>& readings)
 
                 uint8_t qd = IEC60870_QUALITY_GOOD;
 
-                for (Datapoint* objDp : *sdp) {
-                    printf("    attr-name: %s\n", objDp->getName().c_str());
-
+                for (Datapoint* objDp : *sdp)
+                {
                     DatapointValue attrVal = objDp->getData();
 
                     if (objDp->getName() == "do_ca") {
@@ -718,7 +903,17 @@ uint32_t IEC104Server::send(const vector<Reading*>& readings)
                     }
                 }
 
-                if (ca != -1 && ioa != -1 && cot != CS101_COT_UNKNOWN_COT && type != -1) {
+                printf("COT: %i\n", cot);
+
+                if (cot == CS101_COT_ACTIVATION_CON)
+                {
+                    handleActCon(type, ca, ioa);
+                }
+                else if (cot == CS101_COT_ACTIVATION_TERMINATION)
+                {
+                    handleActTerm(type, ca, ioa);
+                }
+                else if (ca != -1 && ioa != -1 && cot != CS101_COT_UNKNOWN_COT && type != -1) {
 
                     IEC104DataPoint* dp = m_getDataPoint(ca, ioa, 0);
 
@@ -786,7 +981,8 @@ void IEC104Server::printCP56Time2a(CP56Time2a time)
  * @param msgSize	    message size
  * @param sent	        boolean
  */
-void IEC104Server::rawMessageHandler(void* parameter,
+void
+IEC104Server::rawMessageHandler(void* parameter,
                                      IMasterConnection connection, uint8_t* msg,
                                      int msgSize, bool sent)
 {
@@ -811,7 +1007,8 @@ void IEC104Server::rawMessageHandler(void* parameter,
  * @param newTime	    new time
  * @return 		boolean
  */
-bool IEC104Server::clockSyncHandler(void* parameter,
+bool
+IEC104Server::clockSyncHandler(void* parameter,
                                     IMasterConnection connection,
                                     CS101_ASDU asdu, CP56Time2a newTime)
 {
@@ -860,7 +1057,8 @@ isBroadcastCA(int ca, CS101_AppLayerParameters alParams)
     return false;
 }
 
-void IEC104Server::sendInterrogationResponse(IMasterConnection connection, CS101_ASDU asdu, int ca)
+void
+IEC104Server::sendInterrogationResponse(IMasterConnection connection, CS101_ASDU asdu, int ca)
 {
     CS101_ASDU_setCA(asdu, ca);
 
@@ -1003,7 +1201,8 @@ void IEC104Server::sendInterrogationResponse(IMasterConnection connection, CS101
  * @param qoi	        qoi
  * @return 		boolean
  */
-bool IEC104Server::interrogationHandler(void* parameter,
+bool
+IEC104Server::interrogationHandler(void* parameter,
                                         IMasterConnection connection,
                                         CS101_ASDU asdu, uint8_t qoi)
 {
@@ -1077,7 +1276,8 @@ isSupportedCommandType(IEC60870_5_TypeID typeId)
  * @param asdu	        asdu
  * @return 		boolean
  */
-bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
+bool
+IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                CS101_ASDU asdu)
 {
     IEC104Server* self = (IEC104Server*)parameter;
@@ -1085,6 +1285,8 @@ bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
     if (isSupportedCommandType(CS101_ASDU_getTypeID(asdu)))
     {
         Logger::getLogger()->info("received command");
+
+        bool sendResponse = true;
 
         if (CS101_ASDU_getCOT(asdu) == CS101_COT_ACTIVATION)
         {
@@ -1096,8 +1298,8 @@ bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
 
             if (ld.empty() == false) {
                 /* check if command has an allowed OA */
-                if (self->m_config->IsOriginatorAllowed(CS101_ASDU_getOA(asdu))) {
-
+                if (self->m_config->IsOriginatorAllowed(CS101_ASDU_getOA(asdu)))
+                {
                     int ioa = InformationObject_getObjectAddress(io);       
 
                     IEC104DataPoint* dp = ld[ioa];
@@ -1124,8 +1326,12 @@ bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                             if (acceptCommand) {
                                 CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
 
-                                if (self->forwardCommand(asdu, io) == false) {
+                                if (self->forwardCommand(asdu, io, connection) == false) {
                                     CS101_ASDU_setNegative(asdu, true);
+                                }
+                                else {
+                                    /* send ACT-CON later when south side feedback is received */
+                                    sendResponse = false;
                                 }
                             }
                             else {
@@ -1158,7 +1364,10 @@ bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
             CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_COT);
         }
 
-        IMasterConnection_sendASDU(connection, asdu);
+        if (sendResponse) 
+        {
+            IMasterConnection_sendASDU(connection, asdu);
+        }
 
         return true;
     }
@@ -1173,7 +1382,8 @@ bool IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
  * @param ipAddress	    incoming connection request IP address
  * @return 		boolean
  */
-bool IEC104Server::connectionRequestHandler(void* parameter,
+bool
+IEC104Server::connectionRequestHandler(void* parameter,
                                             const char* ipAddress)
 {
     Logger::getLogger()->info("New connection request from %s", ipAddress);
@@ -1188,10 +1398,13 @@ bool IEC104Server::connectionRequestHandler(void* parameter,
  * @param connection	connection object
  * @param event         peer connection event object
  */
-void IEC104Server::connectionEventHandler(void* parameter,
+void
+IEC104Server::connectionEventHandler(void* parameter,
                                           IMasterConnection con,
                                           CS104_PeerConnectionEvent event)
 {
+    IEC104Server* self = (IEC104Server*)parameter;
+
     char ipAddrBuf[100];
     ipAddrBuf[0] = 0;
 
@@ -1206,6 +1419,7 @@ void IEC104Server::connectionEventHandler(void* parameter,
     {
         Logger::getLogger()->info("Connection closed (%s)", ipAddrBuf);
         printf("Connection closed from %s\n", ipAddrBuf);
+        self->removeOutstandingCommands(con);
     }
     else if (event == CS104_CON_EVENT_ACTIVATED)
     {
@@ -1214,18 +1428,31 @@ void IEC104Server::connectionEventHandler(void* parameter,
     else if (event == CS104_CON_EVENT_DEACTIVATED)
     {
         Logger::getLogger()->info("Connection deactivated (%s)", ipAddrBuf);
+        self->removeOutstandingCommands(con);
     }
 }
 
 /**
  * Stop the IEC104 Server
  */
-void IEC104Server::stop()
+void
+IEC104Server::stop()
 {
     if (m_slave)
     {
         CS104_Slave_stop(m_slave);
         CS104_Slave_destroy(m_slave);
         m_slave = nullptr;
+    }
+
+    if (m_started == true)
+    {
+        m_started = false;
+
+        if (m_monitoringThread != nullptr) {
+            m_monitoringThread->join();
+            delete m_monitoringThread;
+            m_monitoringThread = nullptr;
+        }
     }
 }

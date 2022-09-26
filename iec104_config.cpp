@@ -26,7 +26,8 @@ IEC104Config::IEC104Config(const string& protocolConfig, const string& exchangeC
     importExchangeConfig(exchangeConfig);
 }
 
-void IEC104Config::deleteExchangeDefinitions()
+void
+IEC104Config::deleteExchangeDefinitions()
 {
     if (m_exchangeDefinitions != nullptr) {
         for (auto const& exchangeDefintions : *m_exchangeDefinitions) {
