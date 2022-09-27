@@ -46,7 +46,7 @@ static string protocol_stack = QUOTE({
                 ],
                 "bind_on_ip":false,
                 "srv_ip":"0.0.0.0",
-                "port":2404,
+                "port":2405,
                 "tls":false,
                 "k_value":12,
                 "w_value":8,
@@ -161,7 +161,7 @@ protected:
 
     static int operateHandlerCalled;
 
-    static int operateHandler(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...);
+    static int operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...);
 
     // TearDown is ran for every tests, so each variable are destroyed again
     void TearDown() override
@@ -203,7 +203,7 @@ ControlTest::m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu
 
 int ControlTest::operateHandlerCalled;
 
-int ControlTest::operateHandler(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...)
+int ControlTest::operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...)
 {
     printf("operateHandler called\n");
     operateHandlerCalled++;
@@ -431,4 +431,13 @@ TEST_F(ControlTest, CommandActCon)
     ASSERT_EQ(2, asduHandlerCalled);
     ASSERT_EQ(1, actConReceived);
     ASSERT_EQ(1, actTermReceived);
+}
+
+TEST_F(ControlTest, LongRunningServer)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(20000);
 }

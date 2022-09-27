@@ -64,79 +64,85 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
 
     m_slave = CS104_Slave_create(m_config->AsduQueueSize(), 100);
 
-    m_oper = NULL;
+    if (m_slave)
+    {
+        m_oper = NULL;
 
-    CS104_Slave_setLocalPort(m_slave, m_config->TcpPort());
+        CS104_Slave_setLocalPort(m_slave, m_config->TcpPort());
 
-    m_log->info("TCP/IP parameters:");
-    m_log->info("  TCP port: %i", m_config->TcpPort());
-    
-    if (m_config->bindOnIp()) {
-        CS104_Slave_setLocalAddress(m_slave, m_config->GetLocalIP());
-        m_log->info("  IP address: %s", m_config->GetLocalIP());
-    }
+        m_log->info("TCP/IP parameters:");
+        m_log->info("  TCP port: %i", m_config->TcpPort());
+        
+        if (m_config->bindOnIp()) {
+            CS104_Slave_setLocalAddress(m_slave, m_config->GetLocalIP());
+            m_log->info("  IP address: %s", m_config->GetLocalIP());
+        }
 
-    CS104_APCIParameters apciParams =
-        CS104_Slave_getConnectionParameters(m_slave);
+        CS104_APCIParameters apciParams =
+            CS104_Slave_getConnectionParameters(m_slave);
 
-    apciParams->k = m_config->K();
-    apciParams->w = m_config->W();
-    apciParams->t0 = m_config->T0();
-    apciParams->t1 = m_config->T1();
-    apciParams->t2 = m_config->T2();
-    apciParams->t3 = m_config->T3();
+        apciParams->k = m_config->K();
+        apciParams->w = m_config->W();
+        apciParams->t0 = m_config->T0();
+        apciParams->t1 = m_config->T1();
+        apciParams->t2 = m_config->T2();
+        apciParams->t3 = m_config->T3();
 
-    m_log->info("APCI parameters:");
-    m_log->info("  t0: %i", apciParams->t0);
-    m_log->info("  t1: %i", apciParams->t1);
-    m_log->info("  t2: %i", apciParams->t2);
-    m_log->info("  t3: %i", apciParams->t3);
-    m_log->info("  k: %i", apciParams->k);
-    m_log->info("  w: %i", apciParams->w);
+        m_log->info("APCI parameters:");
+        m_log->info("  t0: %i", apciParams->t0);
+        m_log->info("  t1: %i", apciParams->t1);
+        m_log->info("  t2: %i", apciParams->t2);
+        m_log->info("  t3: %i", apciParams->t3);
+        m_log->info("  k: %i", apciParams->k);
+        m_log->info("  w: %i", apciParams->w);
 
-    CS101_AppLayerParameters appLayerParams =
-        CS104_Slave_getAppLayerParameters(m_slave);
+        CS101_AppLayerParameters appLayerParams =
+            CS104_Slave_getAppLayerParameters(m_slave);
 
-    if (m_config->AsduSize() == 0)
-        appLayerParams->maxSizeOfASDU = 253;
-    else
-        appLayerParams->maxSizeOfASDU = m_config->AsduSize();
+        if (m_config->AsduSize() == 0)
+            appLayerParams->maxSizeOfASDU = 253;
+        else
+            appLayerParams->maxSizeOfASDU = m_config->AsduSize();
 
-    appLayerParams->sizeOfCA = m_config->CaSize();
-    appLayerParams->sizeOfIOA = m_config->IOASize();
+        appLayerParams->sizeOfCA = m_config->CaSize();
+        appLayerParams->sizeOfIOA = m_config->IOASize();
 
-    /* set the callback handler for the clock synchronization command */
-    CS104_Slave_setClockSyncHandler(m_slave, clockSyncHandler, this);
+        /* set the callback handler for the clock synchronization command */
+        CS104_Slave_setClockSyncHandler(m_slave, clockSyncHandler, this);
 
-    /* set the callback handler for the interrogation command */
-    CS104_Slave_setInterrogationHandler(m_slave, interrogationHandler, this);
+        /* set the callback handler for the interrogation command */
+        CS104_Slave_setInterrogationHandler(m_slave, interrogationHandler, this);
 
-    /* set handler for other message types */
-    CS104_Slave_setASDUHandler(m_slave, asduHandler, this);
+        /* set handler for other message types */
+        CS104_Slave_setASDUHandler(m_slave, asduHandler, this);
 
-    /* set handler to handle connection requests */
-    CS104_Slave_setConnectionRequestHandler(m_slave, connectionRequestHandler, this);
+        /* set handler to handle connection requests */
+        CS104_Slave_setConnectionRequestHandler(m_slave, connectionRequestHandler, this);
 
-    /* set handler to track connection events */
-    CS104_Slave_setConnectionEventHandler(m_slave, connectionEventHandler, this);
+        /* set handler to track connection events */
+        CS104_Slave_setConnectionEventHandler(m_slave, connectionEventHandler, this);
 
-    auto redGroups = m_config->getRedGroups();
+        auto redGroups = m_config->getRedGroups();
 
-    if (redGroups.empty()) {
-        CS104_Slave_setServerMode(m_slave, CS104_MODE_SINGLE_REDUNDANCY_GROUP);
+        if (redGroups.empty()) {
+            CS104_Slave_setServerMode(m_slave, CS104_MODE_SINGLE_REDUNDANCY_GROUP);
+        }
+        else {
+            CS104_Slave_setServerMode(m_slave, CS104_MODE_MULTIPLE_REDUNDANCY_GROUPS);
+
+            for (CS104_RedundancyGroup redGroup : redGroups) {
+                CS104_Slave_addRedundancyGroup(m_slave, redGroup);
+            }
+        }
+
+        m_started = true;
+        m_monitoringThread = new std::thread(&IEC104Server::_monitoringThread, this);
+
+        CS104_Slave_start(m_slave);
     }
     else {
-        CS104_Slave_setServerMode(m_slave, CS104_MODE_MULTIPLE_REDUNDANCY_GROUPS);
-
-        for (CS104_RedundancyGroup redGroup : redGroups) {
-            CS104_Slave_addRedundancyGroup(m_slave, redGroup);
-        }
+        m_log->error("Failed to create CS104 server instance");
     }
-
-    m_started = true;
-    m_monitoringThread = new std::thread(&IEC104Server::_monitoringThread, this);
-
-    CS104_Slave_start(m_slave);
 }
 
 /**
@@ -146,6 +152,8 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
 void
 IEC104Server::configure(const ConfigCategory* config)
 {
+    m_log->warn("Called configure");
+
     if (config->itemExists("name"))
         m_name = config->getValue("name");
     else
@@ -167,11 +175,13 @@ IEC104Server::configure(const ConfigCategory* config)
 
     const std::string tlsConfig = std::string("");
 
+    m_log->warn("Calling setJsonConfig");
+
     setJsonConfig(protocolStack, dataExchange, tlsConfig);
 }
 
 void
-IEC104Server::registerControl(int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...))
+IEC104Server::registerControl(int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...))
 {
     m_oper = operation;
 }
@@ -296,9 +306,10 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
 void
 IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmission cot, IEC60870_5_TypeID typeId)
 {
-    CS101_ASDU asdu = CS101_ASDU_create(alParams, false, cot, 0, dp->m_ca, false, false);
+    CS101_ASDU asdu = CS101_ASDU_create(CS104_Slave_getAppLayerParameters(m_slave), false, cot, 0, dp->m_ca, false, false);
 
-    if (asdu) {
+    if (asdu)
+    {
         InformationObject io = NULL;
 
         switch (typeId) {
@@ -342,9 +353,9 @@ IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmis
         if (io) {
             CS101_ASDU_addInformationObject(asdu, io);
 
-            InformationObject_destroy(io);
-
             CS104_Slave_enqueueASDU(m_slave, asdu);
+
+            InformationObject_destroy(io);
         }
 
         CS101_ASDU_destroy(asdu);
@@ -535,6 +546,13 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
         char* s_select = NULL;
 
         char* parameters[5];
+        char* names[5];
+
+        names[0] = (char*)"ca";
+        names[1] = (char*)"ioa";
+        names[2] = (char*)"value";
+        names[3] = (char*)"se";
+        names[4] = (char*)"time";
 
         parameters[0] = s_ca;
         parameters[1] = s_ioa;
@@ -555,7 +573,9 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection);
 
-                    m_oper((char*)"SingleCommand", 4, parameters, DestinationBroadcast, NULL);
+                    m_log->warn("Send single command to iec104-client1");
+
+                    m_oper((char*)"SingleCommand", 4, names, parameters, DestinationService, "iec104-client1");
                 }
                 break;
 
@@ -576,7 +596,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         addToOutstandingCommands(asdu, connection);
 
-                        m_oper((char*)"SingleCommandWithCP56Time2a", 4, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"SingleCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
                     }
                     else {
                         return false;
@@ -599,7 +619,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection);
 
-                    m_oper((char*)"DoubleCommand", 4, parameters, DestinationBroadcast, NULL);
+                    m_oper((char*)"DoubleCommand", 4, names, parameters, DestinationBroadcast, NULL);
                 }
                 break;
 
@@ -620,7 +640,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         addToOutstandingCommands(asdu, connection);
 
-                        m_oper((char*)"DoubleCommandWithCP56Time2a", 4, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"DoubleCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
                     }
                     else {
                         return false;
@@ -642,7 +662,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection);
 
-                    m_oper((char*)"StepCommand", 4, parameters, DestinationBroadcast, NULL);
+                    m_oper((char*)"StepCommand", 4, names, parameters, DestinationBroadcast, NULL);
                 }
                 break;
 
@@ -663,7 +683,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         addToOutstandingCommands(asdu, connection);
 
-                        m_oper((char*)"StepCommandWithCP56Time2a", 4, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"StepCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
                     }
                     else {
                         return false;
@@ -683,7 +703,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection);
 
-                    m_oper((char*)"SetpointNormalized", 3, parameters, DestinationBroadcast, NULL);
+                    m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationBroadcast, NULL);
                 }   
                 break;
 
@@ -702,7 +722,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         addToOutstandingCommands(asdu, connection);
 
-                        m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
                     }
                     else {
                         return false;
@@ -722,7 +742,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection);
 
-                    m_oper((char*)"SetpointScaled", 3, parameters, DestinationBroadcast, NULL);
+                    m_oper((char*)"SetpointScaled", 3, names, parameters, DestinationBroadcast, NULL);
                 }
                 break;
 
@@ -742,7 +762,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         addToOutstandingCommands(asdu, connection);
 
-                        m_oper((char*)"SetpointScaledWithCP56Time2a", 3, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"SetpointScaledWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
                     }
                     else {
                         return false;
@@ -762,7 +782,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection);
 
-                    m_oper((char*)"SetpointShort", 3, parameters, DestinationBroadcast, NULL);
+                    m_oper((char*)"SetpointShort", 3, names, parameters, DestinationBroadcast, NULL);
                 }   
                 break;
 
@@ -781,7 +801,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         addToOutstandingCommands(asdu, connection);
 
-                        m_oper((char*)"SetpointShortWithCP56Time2a", 3, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"SetpointShortWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
                     }
                     else {
                         return false;
@@ -811,7 +831,7 @@ IEC104Server::send(const vector<Reading*>& readings)
 {
     if (CS104_Slave_isRunning(m_slave) == false)
     {
-        m_log->error("Failed to send data: server not running");
+        //m_log->error("Failed to send data: server not running");
         return 0;
     }
 
@@ -826,6 +846,8 @@ IEC104Server::send(const vector<Reading*>& readings)
         for (Datapoint* dp : dataPoints) {
 
             if (dp->getName() == "data_object") {
+
+               // m_log->info("Received data_object");
               
                 int ca = -1;
                 int ioa = -1;
@@ -903,7 +925,7 @@ IEC104Server::send(const vector<Reading*>& readings)
                     }
                 }
 
-                printf("COT: %i\n", cot);
+               // m_log->info("     data_object - CA: %i IOA: %i COT: %i", ca, ioa, cot);
 
                 if (cot == CS101_COT_ACTIVATION_CON)
                 {
@@ -939,8 +961,6 @@ IEC104Server::send(const vector<Reading*>& readings)
                         }
                     }
                     else {
-                        printf("ERROR: data point %i:%i not found\n", ca, ioa);
-
                         m_log->error("data point %i:%i not found", ca, ioa);
                     }
                 }
@@ -948,7 +968,7 @@ IEC104Server::send(const vector<Reading*>& readings)
                 if (value != nullptr) delete value;
             }
             else {
-                printf("   --> Unknown data point name\n");
+                m_log->error("   --> Unknown data point name");
             }
         }
 
@@ -1080,9 +1100,7 @@ IEC104Server::sendInterrogationResponse(IMasterConnection connection, CS101_ASDU
     {
         IEC104DataPoint* dp = it->second;
 
-        if (dp->isMonitoringType()) {
-
-            printf("  CA: %i IOA: %i type: %i => %s\n", dp->m_ca, dp->m_ioa, dp->m_type, dp->m_label.c_str());
+        if ((dp != nullptr) && dp->isMonitoringType()) {
 
             InformationObject io = NULL;
 

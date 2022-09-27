@@ -87,7 +87,7 @@ public:
     void ActConTimeout(int value) {m_actConTimeout = value;};
     void ActTermTimeout(int value) {m_actTermTimeout = value;};
 
-    void registerControl(int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...));
+    void registerControl(int (* operation)(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...));
 
 private:
 
@@ -134,7 +134,7 @@ private:
     int m_actConTimeout = 1000;
     int m_actTermTimeout = 1000;
 
-    int (*m_oper)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...);
+    int (*m_oper)(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...);
 
     bool m_started = false;
     std::thread* m_monitoringThread = nullptr;
