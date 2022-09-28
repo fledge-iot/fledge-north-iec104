@@ -387,18 +387,13 @@ IEC104Server::checkTimestamp(CP56Time2a timestamp)
     int timeDiff;
 
     if (commandTime > currentTime) {
-        timeDiff = commandTime - currentTime;
+        timeDiff = (int)(commandTime - currentTime);
     }
     else {
-        timeDiff = currentTime - commandTime;
+        timeDiff = (int)(currentTime - commandTime);
     }
 
-    // TODO use configured parameter instead of hard coded value for allowed time difference
-    if (timeDiff > 5000) {
-        m_log->warn("Command timestamp is out of valid range -> ignore command");
-
-        //TODO in this case no ACT_CON should be sent!
-
+    if ((timeDiff > (m_config->CmdRecvTimeout() * 1000)) || (timeDiff < 0)) {
         return false;
     }
     else {
@@ -576,7 +571,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     m_log->info("Send single command (%s)", SingleCommand_isSelect(sc) ? "select" : "execute");
 
-                    m_oper((char*)"SingleCommand", 4, names, parameters, DestinationService, "iec104-client1");
+                    if (m_config->ControlTarget() == "")
+                        m_oper((char*)"SingleCommand", 4, names, parameters, DestinationBroadcast, NULL);
+                    else
+                        m_oper((char*)"SingleCommand", 4, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }
                 break;
 
@@ -584,25 +582,20 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                 {
                     SingleCommandWithCP56Time2a sc = (SingleCommandWithCP56Time2a)command;
 
-                    CP56Time2a timestamp = SingleCommandWithCP56Time2a_getTimestamp(sc);
+                    s_val = (char*)(SingleCommand_getState((SingleCommand)sc) ? "1" : "0");
+                    s_select = (char*)(SingleCommand_isSelect((SingleCommand)sc) ? "1" : "0");
 
-                    if (checkTimestamp(timestamp)) {
-                        s_val = (char*)(SingleCommand_getState((SingleCommand)sc) ? "1" : "0");
-                        s_select = (char*)(SingleCommand_isSelect((SingleCommand)sc) ? "1" : "0");
+                    parameters[2] = s_val;
+                    parameters[3] = s_select;
 
-                        parameters[2] = s_val;
-                        parameters[3] = s_select;
+                    parameterCount = 4;
 
-                        parameterCount = 4;
+                    addToOutstandingCommands(asdu, connection, SingleCommand_isSelect((SingleCommand)sc));
 
-                        addToOutstandingCommands(asdu, connection, SingleCommand_isSelect((SingleCommand)sc));
-
+                    if (m_config->ControlTarget() == "")
                         m_oper((char*)"SingleCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
-                    }
-                    else {
-                        return false;
-                    }
-
+                    else
+                        m_oper((char*)"SingleCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }
                 break;
 
@@ -620,7 +613,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, DoubleCommand_isSelect(dc));
 
-                    m_oper((char*)"DoubleCommand", 4, names, parameters, DestinationBroadcast, NULL);
+                    if (m_config->ControlTarget() == "")
+                        m_oper((char*)"DoubleCommand", 4, names, parameters, DestinationBroadcast, NULL);
+                    else
+                        m_oper((char*)"DoubleCommand", 4, names, parameters, DestinationBroadcast, DestinationService, m_config->ControlTarget().c_str());
                 }
                 break;
 
@@ -628,24 +624,20 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                 {
                     DoubleCommandWithCP56Time2a dc = (DoubleCommandWithCP56Time2a)command;
 
-                    CP56Time2a timestamp = DoubleCommandWithCP56Time2a_getTimestamp(dc);
+                    s_val = (char*)std::to_string(DoubleCommand_getState((DoubleCommand)dc)).c_str();
+                    s_select = (char*)(DoubleCommand_isSelect((DoubleCommand)dc) ? "1" : "0");
 
-                    if (checkTimestamp(timestamp)) {
-                        s_val = (char*)std::to_string(DoubleCommand_getState((DoubleCommand)dc)).c_str();
-                        s_select = (char*)(DoubleCommand_isSelect((DoubleCommand)dc) ? "1" : "0");
+                    parameters[2] = s_val;
+                    parameters[3] = s_select;
 
-                        parameters[2] = s_val;
-                        parameters[3] = s_select;
+                    parameterCount = 4;
 
-                        parameterCount = 4;
+                    addToOutstandingCommands(asdu, connection, DoubleCommand_isSelect((DoubleCommand)dc));
 
-                        addToOutstandingCommands(asdu, connection, DoubleCommand_isSelect((DoubleCommand)dc));
-
+                    if (m_config->ControlTarget() == "")
                         m_oper((char*)"DoubleCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
-                    }
-                    else {
-                        return false;
-                    }
+                    else
+                        m_oper((char*)"DoubleCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }
                 break;
 
@@ -663,7 +655,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, StepCommand_isSelect(rc));
 
-                    m_oper((char*)"StepCommand", 4, names, parameters, DestinationBroadcast, NULL);
+                    if (m_config->ControlTarget() == "")
+                        m_oper((char*)"StepCommand", 4, names, parameters, DestinationBroadcast, NULL);
+                    else
+                        m_oper((char*)"StepCommand", 4, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }
                 break;
 
@@ -671,24 +666,20 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                 {
                     StepCommandWithCP56Time2a rc = (StepCommandWithCP56Time2a)command;
 
-                    CP56Time2a timestamp = StepCommandWithCP56Time2a_getTimestamp(rc);
+                    s_val = (char*)std::to_string(StepCommand_getState((StepCommand)rc)).c_str();
+                    s_select = (char*)(StepCommand_isSelect((StepCommand)rc) ? "1" : "0");
 
-                    if (checkTimestamp(timestamp)) {
-                        s_val = (char*)std::to_string(StepCommand_getState((StepCommand)rc)).c_str();
-                        s_select = (char*)(StepCommand_isSelect((StepCommand)rc) ? "1" : "0");
+                    parameters[2] = s_val;
+                    parameters[3] = s_select;
 
-                        parameters[2] = s_val;
-                        parameters[3] = s_select;
+                    parameterCount = 4;
 
-                        parameterCount = 4;
+                    addToOutstandingCommands(asdu, connection, StepCommand_isSelect((StepCommand)rc));
 
-                        addToOutstandingCommands(asdu, connection, StepCommand_isSelect((StepCommand)rc));
-
+                    if (m_config->ControlTarget() == "")
                         m_oper((char*)"StepCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
-                    }
-                    else {
-                        return false;
-                    }
+                    else
+                        m_oper((char*)"StepCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }
                 break;
 
@@ -704,7 +695,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, false);
 
-                    m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationBroadcast, NULL);
+                    if (m_config->ControlTarget() == "")
+                        m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationBroadcast, NULL);
+                    else
+                        m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }   
                 break;
 
@@ -712,22 +706,18 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                 {
                     SetpointCommandNormalizedWithCP56Time2a spn = (SetpointCommandNormalizedWithCP56Time2a)command;
 
-                    CP56Time2a timestamp = SetpointCommandNormalizedWithCP56Time2a_getTimestamp(spn);
+                    s_val = (char*)(std::to_string(SetpointCommandNormalized_getValue((SetpointCommandNormalized)spn)).c_str());
 
-                    if (checkTimestamp(timestamp)) {
-                        s_val = (char*)(std::to_string(SetpointCommandNormalized_getValue((SetpointCommandNormalized)spn)).c_str());
+                    parameters[2] = s_val;
 
-                        parameters[2] = s_val;
+                    parameterCount = 3;
 
-                        parameterCount = 3;
+                    addToOutstandingCommands(asdu, connection, false);
 
-                        addToOutstandingCommands(asdu, connection, false);
-
+                    if (m_config->ControlTarget() == "")
                         m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
-                    }
-                    else {
-                        return false;
-                    }
+                    else
+                        m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }
                 break;
 
@@ -743,7 +733,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, false);
 
-                    m_oper((char*)"SetpointScaled", 3, names, parameters, DestinationBroadcast, NULL);
+                    if (m_config->ControlTarget() == "")
+                        m_oper((char*)"SetpointScaled", 3, names, parameters, DestinationBroadcast, NULL);
+                    else
+                        m_oper((char*)"SetpointScaled", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }
                 break;
 
@@ -751,23 +744,18 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                 {
                     SetpointCommandScaledWithCP56Time2a sps = (SetpointCommandScaledWithCP56Time2a)command;
 
+                    s_val = (char*)(std::to_string(SetpointCommandScaled_getValue((SetpointCommandScaled)sps)).c_str());
 
-                    CP56Time2a timestamp = SetpointCommandScaledWithCP56Time2a_getTimestamp(sps);
+                    parameters[2] = s_val;
 
-                    if (checkTimestamp(timestamp)) {
-                        s_val = (char*)(std::to_string(SetpointCommandScaled_getValue((SetpointCommandScaled)sps)).c_str());
+                    parameterCount = 3;
 
-                        parameters[2] = s_val;
+                    addToOutstandingCommands(asdu, connection, false);
 
-                        parameterCount = 3;
-
-                        addToOutstandingCommands(asdu, connection, false);
-
+                    if (m_config->ControlTarget() == "")
                         m_oper((char*)"SetpointScaledWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
-                    }
-                    else {
-                        return false;
-                    }
+                    else
+                        m_oper((char*)"SetpointScaledWithCP56Time2a", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }
                 break;
 
@@ -783,7 +771,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, false);
 
-                    m_oper((char*)"SetpointShort", 3, names, parameters, DestinationBroadcast, NULL);
+                    if (m_config->ControlTarget() == "")
+                        m_oper((char*)"SetpointShort", 3, names, parameters, DestinationBroadcast, NULL);
+                    else
+                        m_oper((char*)"SetpointShort", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }   
                 break;
 
@@ -791,22 +782,18 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                 {
                     SetpointCommandShortWithCP56Time2a spf = (SetpointCommandShortWithCP56Time2a)command;
 
-                    CP56Time2a timestamp = SetpointCommandShortWithCP56Time2a_getTimestamp(spf);
+                    s_val = (char*)(std::to_string(SetpointCommandShort_getValue((SetpointCommandShort)spf)).c_str());
 
-                    if (checkTimestamp(timestamp)) {
-                        s_val = (char*)(std::to_string(SetpointCommandShort_getValue((SetpointCommandShort)spf)).c_str());
+                    parameters[2] = s_val;
 
-                        parameters[2] = s_val;
+                    parameterCount = 3;
 
-                        parameterCount = 3;
+                    addToOutstandingCommands(asdu, connection, false);
 
-                        addToOutstandingCommands(asdu, connection, false);
-
+                    if (m_config->ControlTarget() == "")
                         m_oper((char*)"SetpointShortWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
-                    }
-                    else {
-                        return false;
-                    }
+                    else
+                        m_oper((char*)"SetpointShortWithCP56Time2a", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
                 }
                 break;
 
@@ -1277,6 +1264,8 @@ isSupportedCommandType(IEC60870_5_TypeID typeId)
     if (typeId == C_SC_TA_1) return true;
     if (typeId == C_DC_NA_1) return true;
     if (typeId == C_DC_TA_1) return true;
+    if (typeId == C_RC_NA_1) return true;
+    if (typeId == C_RC_TA_1) return true;
     if (typeId == C_SE_NA_1) return true;
     if (typeId == C_SE_NB_1) return true;
     if (typeId == C_SE_NC_1) return true;
@@ -1285,6 +1274,52 @@ isSupportedCommandType(IEC60870_5_TypeID typeId)
     if (typeId == C_SE_TC_1) return true;
 
     return false;
+}
+
+bool
+IEC104Server::checkIfCmdTimeIsValid(int typeId, InformationObject io)
+{
+    if (m_config->CmdRecvTimeout() == 0)
+        return true;
+
+    CP56Time2a cmdTime = NULL;
+
+    switch (typeId) {
+        case C_SC_TA_1:
+            cmdTime = SingleCommandWithCP56Time2a_getTimestamp((SingleCommandWithCP56Time2a)io);
+            break;
+            
+        case C_DC_TA_1:
+            cmdTime = DoubleCommandWithCP56Time2a_getTimestamp((DoubleCommandWithCP56Time2a)io);
+            break;
+
+        case C_RC_TA_1:
+            cmdTime = StepCommandWithCP56Time2a_getTimestamp((StepCommandWithCP56Time2a)io);
+            break;
+
+        case C_SE_TA_1:
+            cmdTime = SetpointCommandNormalizedWithCP56Time2a_getTimestamp((SetpointCommandNormalizedWithCP56Time2a)io);
+            break;
+
+        case C_SE_TB_1:
+            cmdTime = SetpointCommandScaledWithCP56Time2a_getTimestamp((SetpointCommandScaledWithCP56Time2a)io);
+            break;
+
+        case C_SE_TC_1:
+            cmdTime = SetpointCommandShortWithCP56Time2a_getTimestamp((SetpointCommandShortWithCP56Time2a)io);
+            break;
+
+        default:
+            m_log->debug("Command with type %i is not supported", typeId);
+            return false;
+    }
+
+    if (cmdTime) {
+        return checkTimestamp(cmdTime);
+    }
+    else {
+        return false;
+    }
 }
 
 /**
@@ -1335,6 +1370,16 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                 if (self->m_config->AllowCmdWithTime() == false) {
                                     acceptCommand = false;
                                 }
+                                else {
+                                    if (self->checkIfCmdTimeIsValid(typeId, io) == false) {
+                                        self->m_log->warn("command (%i) for %i:%i has invalid timestamp -> ignore", typeId, ca, ioa);
+                                        acceptCommand = false;
+                                        sendResponse = false;
+                                    }
+                                    else {
+                                        self->m_log->debug("command time valid -> accept");
+                                    }
+                                }
                             }
                             else {
                                 if (self->m_config->AllowCmdWithoutTime() == false) {
@@ -1354,7 +1399,7 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                 }
                             }
                             else {
-                                self->m_log->warn("Unknown command type");
+                                self->m_log->warn("Command not accepted");
                                 CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID); 
                             }
                         }

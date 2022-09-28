@@ -50,6 +50,10 @@ public:
     bool AllowCmdWithTime();
     bool AllowCmdWithoutTime();
 
+    int CmdRecvTimeout() {return m_cmdRecvTimeout;};
+
+    string& ControlTarget() {return m_controlTarget;};
+
 private:
 
     static bool isValidIPAddress(const string& addrStr);
@@ -80,7 +84,11 @@ private:
 
     int m_allowedCommands = 1; /* 0 - only without timestamp, 1 - only with timestamp, 2 - both */
 
+    int m_cmdRecvTimeout = 0;
+
     string m_ip;
+
+    string m_controlTarget = "";
 
     std::vector<CS104_RedundancyGroup> m_configuredRedundancyGroups;
 

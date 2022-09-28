@@ -424,16 +424,39 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_allowedCommands = acceptCmdWithTime;
             }
             else {
-                printf("application_layer.accept_cmd_with_time has invalid value -> using default: only commands with timestamp allowed\n");
                 Logger::getLogger()->warn("application_layer.accept_cmd_with_time has invalid value -> using default: only commands with timestamp allowed");
             }
         }
         else {
-            printf("application_layer.accept_cmd_with_time has invalid type -> using default: only commands with timestamp allowed\n");
             Logger::getLogger()->warn("application_layer.accept_cmd_with_time has invalid type -> using default: only commands with timestamp allowed");
         }
     }
- 
+
+    if (applicationLayer.HasMember("cmd_recv_timeout")) {
+        if (applicationLayer["cmd_recv_timeout"].IsInt()) {
+            int cmdRecvTimeout = applicationLayer["cmd_recv_timeout"].GetInt();
+
+            if (cmdRecvTimeout >= 0) {
+                m_cmdRecvTimeout = cmdRecvTimeout;
+            }
+            else {
+                Logger::getLogger()->warn("application_layer.cmd_recv_timeout has invalid value -> using default: disabled (0)");
+            }
+        }
+        else {
+             Logger::getLogger()->warn("application_layer.cmd_recv_timeout has invalid type -> using default: disabled (0)");
+        }
+    }
+
+    if (applicationLayer.HasMember("control_target")) {
+        if (applicationLayer["control_target"].IsString()) {
+            m_controlTarget = applicationLayer["control_target"].GetString();
+        }
+        else {
+            Logger::getLogger()->warn("application_layer.control_target has invalid type -> broadcast commands");
+        }   
+    }
+
     m_protocolConfigComplete = true;
 }
 

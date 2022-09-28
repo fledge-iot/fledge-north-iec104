@@ -104,6 +104,7 @@ private:
     void m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, DatapointValue* value, CP56Time2a ts, uint8_t quality);
 
     bool checkTimestamp(CP56Time2a timestamp);
+    bool checkIfCmdTimeIsValid(int typeId, InformationObject io);
     void addToOutstandingCommands(CS101_ASDU asdu, IMasterConnection connection, bool isSelect);
     bool forwardCommand(CS101_ASDU asdu, InformationObject command, IMasterConnection connection);
     void removeOutstandingCommands(IMasterConnection connection);
