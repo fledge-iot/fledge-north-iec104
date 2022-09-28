@@ -53,7 +53,7 @@ public:
     int CmdRecvTimeout() {return m_cmdRecvTimeout;};
     int CmdExecTimeout() {return m_cmdExecTimeout;};
 
-    string& ControlTarget() {return m_controlTarget;};
+    string& CmdDest() {return m_cmdDest;};
 
 private:
 
@@ -90,7 +90,7 @@ private:
 
     string m_ip;
 
-    string m_controlTarget = "";
+    string m_cmdDest = "";
 
     std::vector<CS104_RedundancyGroup> m_configuredRedundancyGroups;
 

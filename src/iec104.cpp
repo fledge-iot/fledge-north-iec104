@@ -571,10 +571,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     m_log->info("Send single command (%s)", SingleCommand_isSelect(sc) ? "select" : "execute");
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"SingleCommand", 4, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SingleCommand", 4, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"SingleCommand", 4, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break;
 
@@ -592,10 +592,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, SingleCommand_isSelect((SingleCommand)sc));
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"SingleCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SingleCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"SingleCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break;
 
@@ -613,10 +613,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, DoubleCommand_isSelect(dc));
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"DoubleCommand", 4, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"DoubleCommand", 4, names, parameters, DestinationBroadcast, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"DoubleCommand", 4, names, parameters, DestinationBroadcast, DestinationService, m_config->CmdDest().c_str());
                 }
                 break;
 
@@ -634,10 +634,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, DoubleCommand_isSelect((DoubleCommand)dc));
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"DoubleCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"DoubleCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"DoubleCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break;
 
@@ -655,10 +655,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, StepCommand_isSelect(rc));
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"StepCommand", 4, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"StepCommand", 4, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"StepCommand", 4, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break;
 
@@ -676,10 +676,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, StepCommand_isSelect((StepCommand)rc));
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"StepCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"StepCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"StepCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break;
 
@@ -695,10 +695,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, false);
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }   
                 break;
 
@@ -714,10 +714,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, false);
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break;
 
@@ -733,10 +733,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, false);
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"SetpointScaled", 3, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointScaled", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"SetpointScaled", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break;
 
@@ -752,10 +752,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, false);
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"SetpointScaledWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointScaledWithCP56Time2a", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"SetpointScaledWithCP56Time2a", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break;
 
@@ -771,10 +771,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, false);
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"SetpointShort", 3, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointShort", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"SetpointShort", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }   
                 break;
 
@@ -790,10 +790,10 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, false);
 
-                    if (m_config->ControlTarget() == "")
+                    if (m_config->CmdDest() == "")
                         m_oper((char*)"SetpointShortWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointShortWithCP56Time2a", 3, names, parameters, DestinationService, m_config->ControlTarget().c_str());
+                        m_oper((char*)"SetpointShortWithCP56Time2a", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break;
 

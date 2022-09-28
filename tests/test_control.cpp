@@ -60,8 +60,8 @@ static string protocol_stack = QUOTE({
                 "ioaddr_size":3,
                 "asdu_size":0,
                 "time_sync":false,
-                "cmd_exec_timeout":20000,
-                "cmd_recv_timeout":5000,
+                "cmd_exec_timeout":5,
+                "cmd_recv_timeout":60,
                 "accept_cmd_with_time":2,
                 "filter_orig":false,
                 "filter_list":[
@@ -431,13 +431,4 @@ TEST_F(ControlTest, CommandActCon)
     ASSERT_EQ(2, asduHandlerCalled);
     ASSERT_EQ(1, actConReceived);
     ASSERT_EQ(1, actTermReceived);
-}
-
-TEST_F(ControlTest, LongRunningServer)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
-    iec104Server->registerControl(operateHandler);
-
-    Thread_sleep(20000);
 }

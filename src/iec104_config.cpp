@@ -464,12 +464,12 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
         }
     }
 
-    if (applicationLayer.HasMember("control_target")) {
-        if (applicationLayer["control_target"].IsString()) {
-            m_controlTarget = applicationLayer["control_target"].GetString();
+    if (applicationLayer.HasMember("cmd_dest")) {
+        if (applicationLayer["cmd_dest"].IsString()) {
+            m_cmdDest = applicationLayer["cmd_dest"].GetString();
         }
         else {
-            Logger::getLogger()->warn("application_layer.control_target has invalid type -> broadcast commands");
+            Logger::getLogger()->warn("application_layer.cmd_dest has invalid type -> broadcast commands");
         }   
     }
 

@@ -103,7 +103,7 @@ static const char* default_config = QUOTE({
                     "cmd_exec_timeout":20,
                     "cmd_recv_timeout":60,
                     "accept_cmd_with_time":2,
-                    "control_target": "",
+                    "cmd_dest": "",
                     "filter_orig":false,
                     "filter_list":[
                         {
