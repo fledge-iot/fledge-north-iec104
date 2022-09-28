@@ -34,12 +34,13 @@ class IEC104OutstandingCommand
 {
 public:
 
-    IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int actConTimeout, int actTermTimeout);
+    IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int actConTimeout, int actTermTimeout, bool isSelect);
     ~IEC104OutstandingCommand();
 
     bool isMatching(int typeId, int ca, int ioa);
     bool isSentFromConnection(IMasterConnection connection);
     bool hasTimedOut(uint64_t currentTime);
+    bool isSelect();
 
     void sendActCon(bool negative);
     void sendActTerm();
@@ -57,6 +58,8 @@ private:
     int m_typeId;
     int m_ca;
     int m_ioa;
+
+    bool m_isSelect;
 
     int m_actConTimeout;
     int m_actTermTimeout;
@@ -101,7 +104,7 @@ private:
     void m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, DatapointValue* value, CP56Time2a ts, uint8_t quality);
 
     bool checkTimestamp(CP56Time2a timestamp);
-    void addToOutstandingCommands(CS101_ASDU asdu, IMasterConnection connection);
+    void addToOutstandingCommands(CS101_ASDU asdu, IMasterConnection connection, bool isSelect);
     bool forwardCommand(CS101_ASDU asdu, InformationObject command, IMasterConnection connection);
     void removeOutstandingCommands(IMasterConnection connection);
     void removeAllOutstandingCommands();

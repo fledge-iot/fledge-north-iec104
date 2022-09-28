@@ -139,6 +139,8 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
         m_monitoringThread = new std::thread(&IEC104Server::_monitoringThread, this);
 
         CS104_Slave_start(m_slave);
+
+        m_log->info("CS104 server started");
     }
     else {
         m_log->error("Failed to create CS104 server instance");
@@ -152,7 +154,7 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
 void
 IEC104Server::configure(const ConfigCategory* config)
 {
-    m_log->warn("Called configure");
+    m_log->debug("configure called");
 
     if (config->itemExists("name"))
         m_name = config->getValue("name");
@@ -174,8 +176,6 @@ IEC104Server::configure(const ConfigCategory* config)
     const std::string dataExchange = config->getValue("exchanged_data");
 
     const std::string tlsConfig = std::string("");
-
-    m_log->warn("Calling setJsonConfig");
 
     setJsonConfig(protocolStack, dataExchange, tlsConfig);
 }
@@ -203,7 +203,6 @@ IEC104Server::_monitoringThread()
             IEC104OutstandingCommand* outstandingCommand = *it;
 
             if (outstandingCommand->hasTimedOut(currentTime)) {
-                printf("WARN: command %i:%i (type: %i) timeout -> remove from outstanding commands\n", outstandingCommand->CA(), outstandingCommand->IOA(), outstandingCommand->TypeId());
                 m_log->warn("command %i:%i (type: %i) timeout", outstandingCommand->CA(), outstandingCommand->IOA(), outstandingCommand->TypeId());
          
                 it = m_outstandingCommands.erase(it);
@@ -408,11 +407,11 @@ IEC104Server::checkTimestamp(CP56Time2a timestamp)
 }
 
 void
-IEC104Server::addToOutstandingCommands(CS101_ASDU asdu, IMasterConnection connection)
+IEC104Server::addToOutstandingCommands(CS101_ASDU asdu, IMasterConnection connection, bool isSelect)
 {
     m_outstandingCommandsLock.lock();
 
-    IEC104OutstandingCommand* outstandingCommand = new IEC104OutstandingCommand(asdu, connection, m_actConTimeout, m_actTermTimeout);
+    IEC104OutstandingCommand* outstandingCommand = new IEC104OutstandingCommand(asdu, connection, m_actConTimeout, m_actTermTimeout, isSelect);
 
     m_outstandingCommands.push_back(outstandingCommand);
 
@@ -433,8 +432,6 @@ IEC104Server::removeOutstandingCommands(IMasterConnection connection)
         if (outstandingCommand->isSentFromConnection(connection))
         {
             m_log->warn("Remove outstanding command to %i:%i while waiting for feedback", outstandingCommand->CA(), outstandingCommand->IOA());
-
-            printf("WARN: Remove outstanding command to %i:%i while waiting for feedback\n", outstandingCommand->CA(), outstandingCommand->IOA());
 
             it = m_outstandingCommands.erase(it);
 
@@ -479,10 +476,17 @@ IEC104Server::handleActCon(int type, int ca, int ioa)
     {
         IEC104OutstandingCommand* outstandingCommand = *it;
 
-        printf("handleActCon(%i,%i,%i)\n", type, ca, ioa);
-
         if (outstandingCommand->isMatching(type, ca, ioa)) {
             outstandingCommand->sendActCon(false);
+
+            if (outstandingCommand->isSelect()) {
+                m_outstandingCommands.erase(it);
+
+                m_log->info("Outstanding command %i:%i sent ACT-CON(select) -> remove", outstandingCommand->CA(), outstandingCommand->IOA());
+
+                delete outstandingCommand;
+            }
+
             break;
         }
     }
@@ -506,8 +510,6 @@ IEC104Server::handleActTerm(int type, int ca, int ioa)
             outstandingCommand->sendActTerm();
 
             m_log->info("Outstanding command %i:%i sent ACT-TERM -> remove", outstandingCommand->CA(), outstandingCommand->IOA());
-
-            printf("INFO: Outstanding command %i:%i sent ACT-TERM -> remove\n", outstandingCommand->CA(), outstandingCommand->IOA());
 
             m_outstandingCommands.erase(it);
 
@@ -545,14 +547,13 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
         char* s_val = NULL;
         char* s_select = NULL;
 
-        char* parameters[5];
-        char* names[5];
+        char* parameters[4];
+        char* names[4];
 
         names[0] = (char*)"ca";
         names[1] = (char*)"ioa";
         names[2] = (char*)"value";
         names[3] = (char*)"se";
-        names[4] = (char*)"time";
 
         parameters[0] = s_ca;
         parameters[1] = s_ioa;
@@ -571,9 +572,9 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     parameterCount = 4;
 
-                    addToOutstandingCommands(asdu, connection);
+                    addToOutstandingCommands(asdu, connection, SingleCommand_isSelect(sc));
 
-                    m_log->warn("Send single command to iec104-client1");
+                    m_log->info("Send single command (%s)", SingleCommand_isSelect(sc) ? "select" : "execute");
 
                     m_oper((char*)"SingleCommand", 4, names, parameters, DestinationService, "iec104-client1");
                 }
@@ -594,7 +595,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         parameterCount = 4;
 
-                        addToOutstandingCommands(asdu, connection);
+                        addToOutstandingCommands(asdu, connection, SingleCommand_isSelect((SingleCommand)sc));
 
                         m_oper((char*)"SingleCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
                     }
@@ -617,7 +618,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     parameterCount = 4;
 
-                    addToOutstandingCommands(asdu, connection);
+                    addToOutstandingCommands(asdu, connection, DoubleCommand_isSelect(dc));
 
                     m_oper((char*)"DoubleCommand", 4, names, parameters, DestinationBroadcast, NULL);
                 }
@@ -638,7 +639,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         parameterCount = 4;
 
-                        addToOutstandingCommands(asdu, connection);
+                        addToOutstandingCommands(asdu, connection, DoubleCommand_isSelect((DoubleCommand)dc));
 
                         m_oper((char*)"DoubleCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
                     }
@@ -660,7 +661,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     parameterCount = 4;
 
-                    addToOutstandingCommands(asdu, connection);
+                    addToOutstandingCommands(asdu, connection, StepCommand_isSelect(rc));
 
                     m_oper((char*)"StepCommand", 4, names, parameters, DestinationBroadcast, NULL);
                 }
@@ -681,7 +682,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         parameterCount = 4;
 
-                        addToOutstandingCommands(asdu, connection);
+                        addToOutstandingCommands(asdu, connection, StepCommand_isSelect((StepCommand)rc));
 
                         m_oper((char*)"StepCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
                     }
@@ -701,7 +702,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     parameterCount = 3;
 
-                    addToOutstandingCommands(asdu, connection);
+                    addToOutstandingCommands(asdu, connection, false);
 
                     m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationBroadcast, NULL);
                 }   
@@ -720,7 +721,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         parameterCount = 3;
 
-                        addToOutstandingCommands(asdu, connection);
+                        addToOutstandingCommands(asdu, connection, false);
 
                         m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
                     }
@@ -740,7 +741,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     parameterCount = 3;
 
-                    addToOutstandingCommands(asdu, connection);
+                    addToOutstandingCommands(asdu, connection, false);
 
                     m_oper((char*)"SetpointScaled", 3, names, parameters, DestinationBroadcast, NULL);
                 }
@@ -760,7 +761,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         parameterCount = 3;
 
-                        addToOutstandingCommands(asdu, connection);
+                        addToOutstandingCommands(asdu, connection, false);
 
                         m_oper((char*)"SetpointScaledWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
                     }
@@ -780,7 +781,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     parameterCount = 3;
 
-                    addToOutstandingCommands(asdu, connection);
+                    addToOutstandingCommands(asdu, connection, false);
 
                     m_oper((char*)"SetpointShort", 3, names, parameters, DestinationBroadcast, NULL);
                 }   
@@ -799,7 +800,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                         parameterCount = 3;
 
-                        addToOutstandingCommands(asdu, connection);
+                        addToOutstandingCommands(asdu, connection, false);
 
                         m_oper((char*)"SetpointShortWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
                     }

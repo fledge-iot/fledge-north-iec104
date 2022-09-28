@@ -2,7 +2,7 @@
 
 #include <lib60870/hal_time.h>
 
-IEC104OutstandingCommand::IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int actConTimeout, int actTermTimeout)
+IEC104OutstandingCommand::IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int actConTimeout, int actTermTimeout, bool isSelect)
 {
     m_receivedAsdu = CS101_ASDU_clone(asdu, NULL);
 
@@ -15,6 +15,8 @@ IEC104OutstandingCommand::IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConne
 
     m_typeId = CS101_ASDU_getTypeID(asdu);
     m_ca = CS101_ASDU_getCA(asdu);
+
+    m_isSelect = isSelect;
     
     InformationObject io = CS101_ASDU_getElement(asdu, 0);
 
@@ -46,9 +48,16 @@ IEC104OutstandingCommand::sendActCon(bool negative)
         printf("Failed to send ACT-CON\n");
     }
 
-    m_nextTimeout = Hal_getTimeInMs() + m_actTermTimeout;
+    if ((negative == false) && (m_isSelect == false)) {
+        m_nextTimeout = Hal_getTimeInMs() + m_actTermTimeout;
 
-    m_state = 2; /* wait for ACT-TERM */
+        m_state = 2; /* wait for ACT-TERM */
+    }
+    else {
+        m_nextTimeout = 0;
+
+        m_state = 0; /* completed */
+    }
 }
 
 void
@@ -74,8 +83,14 @@ IEC104OutstandingCommand::isMatching(int typeId, int ca, int ioa)
     }
 }
 
- bool
- IEC104OutstandingCommand::hasTimedOut(uint64_t currentTime)
- {
-    return (currentTime > m_nextTimeout);
- }
+bool
+IEC104OutstandingCommand::isSelect()
+{
+    return m_isSelect;
+}
+
+bool
+IEC104OutstandingCommand::hasTimedOut(uint64_t currentTime)
+{
+   return (currentTime > m_nextTimeout);
+}
