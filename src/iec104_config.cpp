@@ -448,6 +448,22 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
         }
     }
 
+    if (applicationLayer.HasMember("cmd_exec_timeout")) {
+        if (applicationLayer["cmd_exec_timeout"].IsInt()) {
+            int cmdExecTimeout = applicationLayer["cmd_exec_timeout"].GetInt();
+
+            if (cmdExecTimeout >= 0) {
+                m_cmdExecTimeout = cmdExecTimeout;
+            }
+            else {
+                Logger::getLogger()->warn("application_layer.cmd_exec_timeout has invalid value -> using default: 20 seconds");
+            }
+        }
+        else {
+             Logger::getLogger()->warn("application_layer.cmd_exec_timeout has invalid type -> using default: 20 seconds");
+        }
+    }
+
     if (applicationLayer.HasMember("control_target")) {
         if (applicationLayer["control_target"].IsString()) {
             m_controlTarget = applicationLayer["control_target"].GetString();

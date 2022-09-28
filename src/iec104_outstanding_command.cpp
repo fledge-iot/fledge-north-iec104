@@ -2,14 +2,13 @@
 
 #include <lib60870/hal_time.h>
 
-IEC104OutstandingCommand::IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int actConTimeout, int actTermTimeout, bool isSelect)
+IEC104OutstandingCommand::IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int cmdExecTimeout, bool isSelect)
 {
     m_receivedAsdu = CS101_ASDU_clone(asdu, NULL);
 
     m_connection = connection;
 
-    m_actConTimeout = actConTimeout;
-    m_actTermTimeout = actTermTimeout;
+    m_cmdExecTimeout = cmdExecTimeout;
 
     m_state = 1; /* wait for ACT-CON */
 
@@ -27,7 +26,7 @@ IEC104OutstandingCommand::IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConne
     }
 
     m_commandRcvdTime = Hal_getTimeInMs();
-    m_nextTimeout = m_commandRcvdTime + m_actConTimeout;
+    m_nextTimeout = m_commandRcvdTime + (m_cmdExecTimeout * 1000);
 }
 
 IEC104OutstandingCommand::~IEC104OutstandingCommand()
@@ -49,8 +48,6 @@ IEC104OutstandingCommand::sendActCon(bool negative)
     }
 
     if ((negative == false) && (m_isSelect == false)) {
-        m_nextTimeout = Hal_getTimeInMs() + m_actTermTimeout;
-
         m_state = 2; /* wait for ACT-TERM */
     }
     else {

@@ -406,7 +406,7 @@ IEC104Server::addToOutstandingCommands(CS101_ASDU asdu, IMasterConnection connec
 {
     m_outstandingCommandsLock.lock();
 
-    IEC104OutstandingCommand* outstandingCommand = new IEC104OutstandingCommand(asdu, connection, m_actConTimeout, m_actTermTimeout, isSelect);
+    IEC104OutstandingCommand* outstandingCommand = new IEC104OutstandingCommand(asdu, connection, m_config->CmdExecTimeout(), isSelect);
 
     m_outstandingCommands.push_back(outstandingCommand);
 

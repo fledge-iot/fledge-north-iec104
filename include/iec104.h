@@ -34,7 +34,7 @@ class IEC104OutstandingCommand
 {
 public:
 
-    IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int actConTimeout, int actTermTimeout, bool isSelect);
+    IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int cmdExecTimeout, bool isSelect);
     ~IEC104OutstandingCommand();
 
     bool isMatching(int typeId, int ca, int ioa);
@@ -61,8 +61,7 @@ private:
 
     bool m_isSelect;
 
-    int m_actConTimeout;
-    int m_actTermTimeout;
+    int m_cmdExecTimeout;
 
     uint64_t m_commandRcvdTime = 0;
     uint64_t m_nextTimeout = 0;

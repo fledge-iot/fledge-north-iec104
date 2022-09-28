@@ -51,6 +51,7 @@ public:
     bool AllowCmdWithoutTime();
 
     int CmdRecvTimeout() {return m_cmdRecvTimeout;};
+    int CmdExecTimeout() {return m_cmdExecTimeout;};
 
     string& ControlTarget() {return m_controlTarget;};
 
@@ -85,6 +86,7 @@ private:
     int m_allowedCommands = 1; /* 0 - only without timestamp, 1 - only with timestamp, 2 - both */
 
     int m_cmdRecvTimeout = 0;
+    int m_cmdExecTimeout = 20;
 
     string m_ip;
 
