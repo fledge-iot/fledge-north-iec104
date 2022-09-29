@@ -1346,83 +1346,90 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
         {
             InformationObject io = CS101_ASDU_getElement(asdu, 0);
 
-            int ca = CS101_ASDU_getCA(asdu);
+            if (io) {
 
-            std::map<int, IEC104DataPoint*> ld = self->m_exchangeDefinitions[ca];
+                int ca = CS101_ASDU_getCA(asdu);
 
-            if (ld.empty() == false) {
-                /* check if command has an allowed OA */
-                if (self->m_config->IsOriginatorAllowed(CS101_ASDU_getOA(asdu)))
-                {
-                    int ioa = InformationObject_getObjectAddress(io);       
+                std::map<int, IEC104DataPoint*> ld = self->m_exchangeDefinitions[ca];
 
-                    IEC104DataPoint* dp = ld[ioa];
+                if (ld.empty() == false) {
+                    /* check if command has an allowed OA */
+                    if (self->m_config->IsOriginatorAllowed(CS101_ASDU_getOA(asdu)))
+                    {
+                        int ioa = InformationObject_getObjectAddress(io);       
 
-                    if (dp) {
+                        IEC104DataPoint* dp = ld[ioa];
 
-                        auto typeId = CS101_ASDU_getTypeID(asdu);
+                        if (dp) {
 
-                        if (dp->isMatchingCommand(typeId)) {
+                            auto typeId = CS101_ASDU_getTypeID(asdu);
 
-                            bool acceptCommand = true;
+                            if (dp->isMatchingCommand(typeId)) {
 
-                            if (IEC104DataPoint::isCommandWithTimestamp(typeId)) {
-                                if (self->m_config->AllowCmdWithTime() == false) {
-                                    acceptCommand = false;
-                                }
-                                else {
-                                    if (self->checkIfCmdTimeIsValid(typeId, io) == false) {
-                                        self->m_log->warn("command (%i) for %i:%i has invalid timestamp -> ignore", typeId, ca, ioa);
+                                bool acceptCommand = true;
+
+                                if (IEC104DataPoint::isCommandWithTimestamp(typeId)) {
+                                    if (self->m_config->AllowCmdWithTime() == false) {
                                         acceptCommand = false;
-                                        sendResponse = false;
                                     }
                                     else {
-                                        self->m_log->debug("command time valid -> accept");
+                                        if (self->checkIfCmdTimeIsValid(typeId, io) == false) {
+                                            self->m_log->warn("command (%i) for %i:%i has invalid timestamp -> ignore", typeId, ca, ioa);
+                                            acceptCommand = false;
+                                            sendResponse = false;
+                                        }
+                                        else {
+                                            self->m_log->debug("command time valid -> accept");
+                                        }
                                     }
                                 }
-                            }
-                            else {
-                                if (self->m_config->AllowCmdWithoutTime() == false) {
-                                    acceptCommand = false;
+                                else {
+                                    if (self->m_config->AllowCmdWithoutTime() == false) {
+                                        acceptCommand = false;
+                                    }
                                 }
-                            }
 
-                            if (acceptCommand) {
-                                CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
+                                if (acceptCommand) {
+                                    CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
 
-                                if (self->forwardCommand(asdu, io, connection) == false) {
-                                    CS101_ASDU_setNegative(asdu, true);
+                                    if (self->forwardCommand(asdu, io, connection) == false) {
+                                        CS101_ASDU_setNegative(asdu, true);
+                                    }
+                                    else {
+                                        /* send ACT-CON later when south side feedback is received */
+                                        sendResponse = false;
+                                    }
                                 }
                                 else {
-                                    /* send ACT-CON later when south side feedback is received */
-                                    sendResponse = false;
+                                    self->m_log->warn("Command not accepted");
+                                    CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID); 
                                 }
                             }
                             else {
-                                self->m_log->warn("Command not accepted");
-                                CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID); 
+                                self->m_log->warn("Unknown command type");
+                                CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
                             }
                         }
                         else {
-                            self->m_log->warn("Unknown command type");
-                            CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
+                            self->m_log->warn("Unknown IOA (%i:%i)", ca, ioa);
+                            CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_IOA);
                         }
                     }
                     else {
-                        self->m_log->warn("Unknown IOA (%i:%i)", ca, ioa);
-                        CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_IOA);
+                        self->m_log->warn("Originator address %i not allowed", CS101_ASDU_getOA(asdu));
                     }
                 }
                 else {
-                    self->m_log->warn("Originator address %i not allowed", CS101_ASDU_getOA(asdu));
+                    self->m_log->warn("Unknown CA: %i", ca);
+                    CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_CA);
                 }
+
+                InformationObject_destroy(io);
             }
             else {
-                self->m_log->warn("Unknown CA: %i", ca);
-                CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_CA);
+                self->m_log->warn("Unknown type or information object missing");
+                CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
             }
-
-            InformationObject_destroy(io);
         }
         else {
             CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_COT);

@@ -167,6 +167,8 @@ protected:
         iec104Server->stop();
 
         LinkedList_destroyDeep(receivedAsdus, (LinkedListValueDeleteFunction)CS101_ASDU_destroy);
+
+        delete iec104Server;
     }
 };
 

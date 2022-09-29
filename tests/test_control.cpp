@@ -46,7 +46,7 @@ static string protocol_stack = QUOTE({
                 ],
                 "bind_on_ip":false,
                 "srv_ip":"0.0.0.0",
-                "port":2405,
+                "port":2404,
                 "tls":false,
                 "k_value":12,
                 "w_value":8,
@@ -61,7 +61,7 @@ static string protocol_stack = QUOTE({
                 "asdu_size":0,
                 "time_sync":false,
                 "cmd_exec_timeout":5,
-                "cmd_recv_timeout":60,
+                "cmd_recv_timeout":1,
                 "accept_cmd_with_time":2,
                 "filter_orig":false,
                 "filter_list":[
@@ -394,7 +394,6 @@ TEST_F(ControlTest, CommandAckTimeout)
     ASSERT_EQ(1, operateHandlerCalled);
 }
 
-
 TEST_F(ControlTest, CommandActCon)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
@@ -431,4 +430,67 @@ TEST_F(ControlTest, CommandActCon)
     ASSERT_EQ(2, asduHandlerCalled);
     ASSERT_EQ(1, actConReceived);
     ASSERT_EQ(1, actTermReceived);
+}
+
+TEST_F(ControlTest, SinglePointCommandIOMissing)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CS101_AppLayerParameters alParams = CS104_Connection_getAppLayerParameters(connection);
+
+    CS101_ASDU asdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION, 0, 45, false, false);
+
+    CS101_ASDU_setTypeID(asdu, C_SC_NA_1);
+
+    CS104_Connection_sendASDU(connection, asdu);
+
+    CS101_ASDU_destroy(asdu);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(0, operateHandlerCalled);
+}
+
+TEST_F(ControlTest, ReceiveSinglePointCommandWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject sc = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    sc = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    free(timestamp);
 }

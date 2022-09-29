@@ -59,8 +59,8 @@ static string protocol_stack = QUOTE({
                 "ioaddr_size":3,
                 "asdu_size":0,
                 "time_sync":false,
-                "cmd_exec_timeout":20000,
-                "cmd_recv_timeout":5000,
+                "cmd_exec_timeout":20,
+                "cmd_recv_timeout":60,
                 "accept_cmd_with_time":2,
                 "filter_orig":false,
                 "filter_list":[
@@ -159,6 +159,8 @@ protected:
     {
         CS104_Connection_destroy(connection);
         iec104Server->stop();
+
+        delete iec104Server;
     }
 };
 
