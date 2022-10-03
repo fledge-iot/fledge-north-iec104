@@ -9,49 +9,61 @@
 #include "cs104_connection.h"
 using namespace std;
 
+
 static string protocol_stack = QUOTE({
         "protocol_stack" : {
-            "name" : "iec104client",
+            "name" : "iec104server",
             "version" : "1.0",
             "transport_layer" : {
-                "connection" : {
-                    "path" : [
-                        {"srv_ip" : "127.0.0.1", "clt_ip" : "", "port" : 2404},
-                        {"srv_ip" : "127.0.0.1", "clt_ip" : "", "port" : 2404}
-                    ],
-                    "tls" : false
-                },
-                "llevel" : 1,
-                "k_value" : 12,
-                "w_value" : 8,
-                "t0_timeout" : 10,
-                "t1_timeout" : 15,
-                "t2_timeout" : 10,
-                "t3_timeout" : 20,
-                "conn_all" : true,
-                "start_all" : false,
-                "conn_passv" : false
+                "redundancy_groups":[
+                    {
+                       "connections":[
+                          {
+                             "clt_ip":"192.168.2.244"
+                          },
+                          {
+                             "clt_ip":"192.168.0.11"
+                          }
+                       ],
+                       "rg_name":"red-group-1"
+                    },
+                    {
+                       "connections":[
+                          {
+                             "clt_ip":"192.168.2.224"
+                          },
+                          {
+                             "clt_ip":"192.168.0.11"
+                          },
+                          {
+                             "clt_ip":"192.168.0.12"
+                          }
+                       ],
+                       "rg_name":"red-group-2"
+                    },
+                    {
+                        "rg_name":"catch-all"
+                    }
+                ],
+                "bind_on_ip":false,
+                "srv_ip":"0.0.0.0",
+                "port":2404,
+                "tls":false,
+                "k_value":12,
+                "w_value":8,
+                "t0_timeout":10,
+                "t1_timeout":15,
+                "t2_timeout":10,
+                "t3_timeout":20
             },
             "application_layer" : {
-                "orig_addr" : 0,
-                "ca_asdu_size" : 2,
-                "ioaddr_size" : 3,
-                "startup_time" : 180,
-                "asdu_size" : 0,
-                "gi_time" : 60,
-                "gi_cycle" : false,
-                "gi_all_ca" : false,
-                "gi_repeat_count" : 2,
-                "disc_qual" : "NT",
-                "send_iv_time" : 0,
-                "tsiv" : "REMOVE",
-                "utc_time" : false,
-                "comm_wttag" : false,
-                "comm_parallel" : 0,
-                "exec_cycl_test" : false,
-                "startup_state" : true,
-                "reverse" : false,
-                "time_sync" : false
+                "ca_asdu_size":2,
+                "ioaddr_size":3,
+                "asdu_size":0,
+                "time_sync":false,
+                "cmd_exec_timeout":5,
+                "cmd_recv_timeout":1,
+                "accept_cmd_with_time":2
             }
         }
     });
@@ -130,6 +142,8 @@ protected:
     {
         CS104_Connection_destroy(connection);
         iec104Server->stop();
+
+        delete iec104Server;
     }
 };
 
@@ -186,4 +200,8 @@ TEST_F(SendSpontDataTest, CreateReading)
     readings.push_back(reading);
 
     iec104Server->send(readings);
+
+    delete reading;
+
+    delete dataobjects;
 }

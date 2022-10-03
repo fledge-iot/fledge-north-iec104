@@ -8,7 +8,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Akli Rahmoun <akli.rahmoun at rte-france.com>
+ * Authors: Akli Rahmoun <akli.rahmoun at rte-france.com>, Michael Zillgith <michael.zillgith@mz-automation.de>
  */
 
 // clang-format off
@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <mutex>
+#include <thread>
 #include "iec104_datapoint.hpp"
 #include "lib60870/cs104_slave.h"
 #include "lib60870/cs101_information_objects.h"
@@ -28,7 +30,44 @@
 #include "iec104_config.hpp"
 // clang-format on
 
+class IEC104OutstandingCommand
+{
+public:
 
+    IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int cmdExecTimeout, bool isSelect);
+    ~IEC104OutstandingCommand();
+
+    bool isMatching(int typeId, int ca, int ioa);
+    bool isSentFromConnection(IMasterConnection connection);
+    bool hasTimedOut(uint64_t currentTime);
+    bool isSelect();
+
+    void sendActCon(bool negative);
+    void sendActTerm();
+
+    int CA() {return m_ca;};
+    int IOA() {return m_ioa;};
+    int TypeId() {return m_typeId;};
+
+private:
+
+    CS101_ASDU m_receivedAsdu = nullptr;
+
+    IMasterConnection m_connection = nullptr;
+
+    int m_typeId;
+    int m_ca;
+    int m_ioa;
+
+    bool m_isSelect;
+
+    int m_cmdExecTimeout;
+
+    uint64_t m_commandRcvdTime = 0;
+    uint64_t m_nextTimeout = 0;
+
+    int m_state = 0; /* 0 - idle/complete, 1 - waiting for ACT-CON, 2 - waiting for ACT-TERM */
+};
 
 class IEC104Server
 {
@@ -44,9 +83,18 @@ public:
     uint32_t send(const std::vector<Reading*>& readings);
     void stop();
 
-    void registerControl(int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...));
+    int ActConTimeout() {return m_actConTimeout;};
+    int ActTermTimeout() {return m_actTermTimeout;};
+
+    void ActConTimeout(int value) {m_actConTimeout = value;};
+    void ActTermTimeout(int value) {m_actTermTimeout = value;};
+
+    void registerControl(int (* operation)(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...));
 
 private:
+
+    std::vector<IEC104OutstandingCommand*> m_outstandingCommands;
+    std::mutex m_outstandingCommandsLock;
 
     std::map<int, std::map<int, IEC104DataPoint*>> m_exchangeDefinitions;
     
@@ -55,7 +103,13 @@ private:
     void m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, DatapointValue* value, CP56Time2a ts, uint8_t quality);
 
     bool checkTimestamp(CP56Time2a timestamp);
-    bool forwardCommand(CS101_ASDU asdu, InformationObject command);
+    bool checkIfCmdTimeIsValid(int typeId, InformationObject io);
+    void addToOutstandingCommands(CS101_ASDU asdu, IMasterConnection connection, bool isSelect);
+    bool forwardCommand(CS101_ASDU asdu, InformationObject command, IMasterConnection connection);
+    void removeOutstandingCommands(IMasterConnection connection);
+    void removeAllOutstandingCommands();
+    void handleActCon(int type, int ca, int ioa);
+    void handleActTerm(int type, int ca, int ioa);
 
     static void printCP56Time2a(CP56Time2a time);
     static void rawMessageHandler(void* parameter, IMasterConnection connection,
@@ -80,7 +134,14 @@ private:
     Logger* m_log;
     IEC104Config* m_config;
 
-    int (*m_oper)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...);
+    int m_actConTimeout = 1000;
+    int m_actTermTimeout = 1000;
+
+    int (*m_oper)(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...);
+
+    bool m_started = false;
+    std::thread* m_monitoringThread = nullptr;
+    void _monitoringThread();
 };
 
 #endif

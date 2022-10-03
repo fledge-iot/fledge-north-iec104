@@ -22,9 +22,9 @@ public:
     void importProtocolConfig(const string& protocolConfig);
     void importExchangeConfig(const string& exchangeConfig);
 
-    std::map<int, std::map<int, IEC104DataPoint*>>* getExchangeDefinitions();
+    std::map<int, std::map<int, IEC104DataPoint*>>* getExchangeDefinitions() {return m_exchangeDefinitions;};
 
-    std::vector<CS104_RedundancyGroup> getRedGroups();
+    std::vector<CS104_RedundancyGroup> getRedGroups() {return m_configuredRedundancyGroups;};
 
     int TcpPort();
     bool bindOnIp() {return m_bindOnIp;};
@@ -50,9 +50,16 @@ public:
     bool AllowCmdWithTime();
     bool AllowCmdWithoutTime();
 
+    int CmdRecvTimeout() {return m_cmdRecvTimeout;};
+    int CmdExecTimeout() {return m_cmdExecTimeout;};
+
+    string& CmdDest() {return m_cmdDest;};
+
 private:
 
     static bool isValidIPAddress(const string& addrStr);
+
+    void deleteExchangeDefinitions();
     
     bool m_protocolConfigComplete;
     bool m_exchangeConfigComplete;
@@ -78,7 +85,12 @@ private:
 
     int m_allowedCommands = 1; /* 0 - only without timestamp, 1 - only with timestamp, 2 - both */
 
+    int m_cmdRecvTimeout = 0;
+    int m_cmdExecTimeout = 20;
+
     string m_ip;
+
+    string m_cmdDest = "";
 
     std::vector<CS104_RedundancyGroup> m_configuredRedundancyGroups;
 

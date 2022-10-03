@@ -207,6 +207,8 @@ protected:
     {
         CS104_Connection_destroy(connection);
         iec104Server->stop();
+
+        delete iec104Server;
     }
 };
 
@@ -241,6 +243,8 @@ static bool test1_ASDUReceivedHandler(void* parameter, int address, CS101_ASDU a
 
         if (io) {
             newAsduInfo->ioa = InformationObject_getObjectAddress(io);
+
+            InformationObject_destroy(io);
         }
         else {
             newAsduInfo->ioa = -1;

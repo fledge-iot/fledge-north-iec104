@@ -26,6 +26,29 @@ IEC104Config::IEC104Config(const string& protocolConfig, const string& exchangeC
     importExchangeConfig(exchangeConfig);
 }
 
+void
+IEC104Config::deleteExchangeDefinitions()
+{
+    if (m_exchangeDefinitions != nullptr) {
+        for (auto const& exchangeDefintions : *m_exchangeDefinitions) {
+            for (auto const& dpPair : exchangeDefintions.second) {
+                IEC104DataPoint* dp = dpPair.second;
+
+                delete dp;
+            }
+        }
+
+        delete m_exchangeDefinitions;
+
+        m_exchangeDefinitions = nullptr;
+    }
+}
+
+IEC104Config::~IEC104Config()
+{
+    deleteExchangeDefinitions();
+}
+
 bool
 IEC104Config::isValidIPAddress(const string& addrStr)
 {
@@ -401,16 +424,55 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_allowedCommands = acceptCmdWithTime;
             }
             else {
-                printf("application_layer.accept_cmd_with_time has invalid value -> using default: only commands with timestamp allowed\n");
                 Logger::getLogger()->warn("application_layer.accept_cmd_with_time has invalid value -> using default: only commands with timestamp allowed");
             }
         }
         else {
-            printf("application_layer.accept_cmd_with_time has invalid type -> using default: only commands with timestamp allowed\n");
             Logger::getLogger()->warn("application_layer.accept_cmd_with_time has invalid type -> using default: only commands with timestamp allowed");
         }
     }
- 
+
+    if (applicationLayer.HasMember("cmd_recv_timeout")) {
+        if (applicationLayer["cmd_recv_timeout"].IsInt()) {
+            int cmdRecvTimeout = applicationLayer["cmd_recv_timeout"].GetInt();
+
+            if (cmdRecvTimeout >= 0) {
+                m_cmdRecvTimeout = cmdRecvTimeout;
+            }
+            else {
+                Logger::getLogger()->warn("application_layer.cmd_recv_timeout has invalid value -> using default: disabled (0)");
+            }
+        }
+        else {
+             Logger::getLogger()->warn("application_layer.cmd_recv_timeout has invalid type -> using default: disabled (0)");
+        }
+    }
+
+    if (applicationLayer.HasMember("cmd_exec_timeout")) {
+        if (applicationLayer["cmd_exec_timeout"].IsInt()) {
+            int cmdExecTimeout = applicationLayer["cmd_exec_timeout"].GetInt();
+
+            if (cmdExecTimeout >= 0) {
+                m_cmdExecTimeout = cmdExecTimeout;
+            }
+            else {
+                Logger::getLogger()->warn("application_layer.cmd_exec_timeout has invalid value -> using default: 20 seconds");
+            }
+        }
+        else {
+             Logger::getLogger()->warn("application_layer.cmd_exec_timeout has invalid type -> using default: 20 seconds");
+        }
+    }
+
+    if (applicationLayer.HasMember("cmd_dest")) {
+        if (applicationLayer["cmd_dest"].IsString()) {
+            m_cmdDest = applicationLayer["cmd_dest"].GetString();
+        }
+        else {
+            Logger::getLogger()->warn("application_layer.cmd_dest has invalid type -> broadcast commands");
+        }   
+    }
+
     m_protocolConfigComplete = true;
 }
 
@@ -419,8 +481,9 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
 {
     m_exchangeConfigComplete = false;
 
-    if (m_exchangeDefinitions == nullptr)
-        m_exchangeDefinitions = new std::map<int, std::map<int, IEC104DataPoint*>>();
+    deleteExchangeDefinitions();
+
+    m_exchangeDefinitions = new std::map<int, std::map<int, IEC104DataPoint*>>();
 
     Document document;
 
@@ -503,17 +566,6 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
     }
 
     m_exchangeConfigComplete = true;
-}
-
-std::map<int, std::map<int, IEC104DataPoint*>>*
-IEC104Config::getExchangeDefinitions()
-{
-    return m_exchangeDefinitions;
-}
-
-std::vector<CS104_RedundancyGroup> IEC104Config::getRedGroups()
-{
-    return m_configuredRedundancyGroups;
 }
 
 int IEC104Config::TcpPort()
