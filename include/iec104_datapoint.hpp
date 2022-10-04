@@ -30,6 +30,8 @@ public:
 
     bool isCommand();
 
+    bool isMessageTypeMatching(int msgTypeId);
+
     bool isMatchingCommand(int typeId);
 
     int m_ca;
@@ -110,6 +112,8 @@ public:
             unsigned int active : 1;
             unsigned int refIoa : 24;
         } param_mv; /* IEC60870_TYPE_PARAM_MV_... */
+
+        struct sCP56Time2a ts;
 
     } m_value;
 };

@@ -83,8 +83,6 @@ static string exchanged_data = QUOTE({
             "datapoints":[
                 {
                     "label":"TS1",
-                    "pivot_id":"ID114562",
-                    "pivot_type":"SpsTyp",
                     "protocols":[
                        {
                           "name":"iec104",
@@ -99,19 +97,102 @@ static string exchanged_data = QUOTE({
                     ]
                 },
                 {
+                    "label":"TS2",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-673",
+                          "typeid":"M_SP_NA_1"
+                       }
+                    ]
+                },
+                {
+                    "label":"TS3",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-674",
+                          "typeid":"M_SP_TB_1"
+                       }
+                    ]
+                },
+                {
+                    "label":"TS4",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-700",
+                          "typeid":"M_DP_NA_1"
+                       }
+                    ]
+                },
+                {
+                    "label":"TS5",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-701",
+                          "typeid":"M_DP_TB_1"
+                       }
+                    ]
+                },
+                {
                     "label":"TM1",
-                    "pivot_id":"ID99876",
-                    "pivot_type":"DpsTyp",
                     "protocols":[
                        {
                           "name":"iec104",
                           "address":"45-984",
                           "typeid":"M_ME_NA_1"
-                       },
+                       }
+                    ]
+                },
+                {
+                    "label":"TM2",
+                    "protocols":[
                        {
-                          "name":"tase2",
-                          "address":"S_114562",
-                          "typeid":"Data_RealQ"
+                          "name":"iec104",
+                          "address":"45-985",
+                          "typeid":"M_ME_NB_1"
+                       }
+                    ]
+                },
+                {
+                    "label":"TM3",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-986",
+                          "typeid":"M_ME_NC_1"
+                       }
+                    ]
+                },
+                {
+                    "label":"TM4",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-987",
+                          "typeid":"M_ME_TD_1"
+                       }
+                    ]
+                },
+                {
+                    "label":"TM5",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-988",
+                          "typeid":"M_ME_TE_1"
+                       }
+                    ]
+                },
+                {
+                    "label":"TM6",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-989",
+                          "typeid":"M_ME_TF_1"
                        }
                     ]
                 }
@@ -125,6 +206,8 @@ class SendSpontDataTest : public testing::Test
 protected:
     IEC104Server* iec104Server;  // Object on which we call for tests
     CS104_Connection connection;
+
+    vector<CS101_ASDU> receivedAsdu;
 
     // Setup is ran for every tests, so each variable are reinitialised
     void SetUp() override
@@ -141,10 +224,20 @@ protected:
     void TearDown() override
     {
         CS104_Connection_destroy(connection);
+
+        for (CS101_ASDU asdu : receivedAsdu)
+        {
+            CS101_ASDU_destroy(asdu);
+        }
+
+        receivedAsdu.clear();
+
         iec104Server->stop();
 
         delete iec104Server;
     }
+
+    static bool test1_ASDUReceivedHandler(void* parameter, int address, CS101_ASDU asdu);
 };
 
 template <class T>
@@ -157,7 +250,7 @@ static Datapoint* createDatapoint(const std::string& dataname,
 
 template <class T>
 static Datapoint* createDataObject(const char* type, int ca, int ioa, int cot,
-    const T value, bool iv, bool bl, bool ov, bool sb, bool nt)
+    const T value, bool iv, bool bl, bool ov, bool sb, bool nt, CP56Time2a ts)
 {
     auto* datapoints = new vector<Datapoint*>;
 
@@ -175,6 +268,13 @@ static Datapoint* createDataObject(const char* type, int ca, int ioa, int cot,
     datapoints->push_back(createDatapoint("do_quality_sb", (int64_t)sb));
     datapoints->push_back(createDatapoint("do_quality_nt", (int64_t)nt));
 
+    if (ts) {
+         datapoints->push_back(createDatapoint("do_ts", (long)CP56Time2a_toMsTimestamp(ts)));
+         datapoints->push_back(createDatapoint("do_ts_iv", (CP56Time2a_isInvalid(ts)) ? 1L : 0L));
+         datapoints->push_back(createDatapoint("do_ts_su", (CP56Time2a_isSummerTime(ts)) ? 1L : 0L));
+         datapoints->push_back(createDatapoint("do_ts_sub", (CP56Time2a_isSubstituted(ts)) ? 1L : 0L));
+    }
+
     DatapointValue dpv(datapoints, true);
 
     Datapoint* dp = new Datapoint("data_object", dpv);
@@ -182,16 +282,35 @@ static Datapoint* createDataObject(const char* type, int ca, int ioa, int cot,
     return dp;
 }
 
+bool SendSpontDataTest::test1_ASDUReceivedHandler(void* parameter, int address, CS101_ASDU asdu)
+{
+    printf("ASDU received - type: %i CA: %i COT: %i\n", CS101_ASDU_getTypeID(asdu), CS101_ASDU_getCA(asdu), CS101_ASDU_getCOT(asdu));
+
+    SendSpontDataTest* self = (SendSpontDataTest*)parameter;
+    
+    self->receivedAsdu.push_back(CS101_ASDU_clone(asdu, NULL));
+
+    return true;
+}
+
+
 // Test the callback handler for station interrogation
-TEST_F(SendSpontDataTest, CreateReading)
+TEST_F(SendSpontDataTest, CreateReading_M_SP_NA_1)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
     auto* dataobjects = new vector<Datapoint*>;
 
-    dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 945, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false));
-    //dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 946, CS101_COT_SPONTANEOUS, (int64_t)0, false, false, false, false, false));
-    //dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 947, CS101_COT_SPONTANEOUS, (int64_t)0, false, false, false, false, false));
+    dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 672, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 673, CS101_COT_SPONTANEOUS, (int64_t)0, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 947, CS101_COT_SPONTANEOUS, (int64_t)0, false, false, false, false, false, NULL));
 
     Reading* reading = new Reading(std::string("TS1"), *dataobjects);
 
@@ -200,6 +319,490 @@ TEST_F(SendSpontDataTest, CreateReading)
     readings.push_back(reading);
 
     iec104Server->send(readings);
+
+    Thread_sleep(1000);
+
+    ASSERT_EQ(2, receivedAsdu.size());
+
+    InformationObject io;
+    
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_SP_NA_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(672, InformationObject_getObjectAddress(io));
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_SP_TA_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    struct sCP56Time2a ts;
+
+    uint64_t timeVal = Hal_getTimeInMs();
+
+    CP56Time2a_createFromMsTimestamp(&ts, timeVal);
+    CP56Time2a_setInvalid(&ts, true);
+
+    dataobjects->push_back(createDataObject("M_SP_TB_1", 45, 674, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, &ts));
+
+    Reading* reading = new Reading(std::string("TS3"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_SP_TB_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(674, InformationObject_getObjectAddress(io));
+    CP56Time2a rcvdTimestamp = SinglePointWithCP56Time2a_getTimestamp((SinglePointWithCP56Time2a)io);
+
+    ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_DP_NA_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    dataobjects->push_back(createDataObject("M_DP_NA_1", 45, 700, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 812, CS101_COT_SPONTANEOUS, (int64_t)0, false, false, false, false, false, NULL));
+
+    Reading* reading = new Reading(std::string("TS3"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+    
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_DP_NA_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(700, InformationObject_getObjectAddress(io));
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_DP_TB_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    struct sCP56Time2a ts;
+
+    uint64_t timeVal = Hal_getTimeInMs();
+
+    CP56Time2a_createFromMsTimestamp(&ts, timeVal);
+    CP56Time2a_setInvalid(&ts, true);
+
+    dataobjects->push_back(createDataObject("M_DP_TB_1", 45, 701, CS101_COT_SPONTANEOUS, (int64_t)2, false, false, false, false, false, &ts));
+    dataobjects->push_back(createDataObject("M_DP_TB_1", 45, 700, CS101_COT_SPONTANEOUS, (int64_t)2, false, false, false, false, false, &ts));
+    dataobjects->push_back(createDataObject("M_SP_TB_1", 45, 700, CS101_COT_SPONTANEOUS, (int64_t)2, false, false, false, false, false, &ts));
+
+    Reading* reading = new Reading(std::string("TS5"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(2, receivedAsdu.size());
+
+    InformationObject io;
+
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_DP_TB_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(701, InformationObject_getObjectAddress(io));
+    CP56Time2a rcvdTimestamp = DoublePointWithCP56Time2a_getTimestamp((DoublePointWithCP56Time2a)io);
+
+    ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+    InformationObject_destroy(io);
+
+    asdu = receivedAsdu.at(1);
+
+    ASSERT_EQ(M_DP_TB_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(700, InformationObject_getObjectAddress(io));
+    rcvdTimestamp = DoublePointWithCP56Time2a_getTimestamp((DoublePointWithCP56Time2a)io);
+
+    ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_ME_NA_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    dataobjects->push_back(createDataObject("M_ME_NA_1", 45, 984, CS101_COT_SPONTANEOUS, (float)0.1f, false, false, false, false, false, NULL));
+
+    Reading* reading = new Reading(std::string("TM1"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+    
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_ME_NA_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(984,InformationObject_getObjectAddress(io));
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_ME_NB_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    dataobjects->push_back(createDataObject("M_ME_NB_1", 45, 985, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+
+    Reading* reading = new Reading(std::string("TM2"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+    
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_ME_NB_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(985,InformationObject_getObjectAddress(io));
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_ME_NC_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    dataobjects->push_back(createDataObject("M_ME_NC_1", 45, 986, CS101_COT_SPONTANEOUS, (float)0.1f, false, false, false, false, false, NULL));
+
+    Reading* reading = new Reading(std::string("TM3"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+    
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_ME_NC_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(986,InformationObject_getObjectAddress(io));
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_ME_TD_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    struct sCP56Time2a ts;
+
+    uint64_t timeVal = Hal_getTimeInMs();
+
+    CP56Time2a_createFromMsTimestamp(&ts, timeVal);
+    CP56Time2a_setInvalid(&ts, true);
+
+    dataobjects->push_back(createDataObject("M_ME_TD_1", 45, 987, CS101_COT_SPONTANEOUS, (float)2.f, false, false, false, false, false, &ts));
+
+    Reading* reading = new Reading(std::string("TM4"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_ME_TD_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(987, InformationObject_getObjectAddress(io));
+    CP56Time2a rcvdTimestamp = MeasuredValueNormalizedWithCP56Time2a_getTimestamp((MeasuredValueNormalizedWithCP56Time2a)io);
+
+    ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_ME_TE_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    struct sCP56Time2a ts;
+
+    uint64_t timeVal = Hal_getTimeInMs();
+
+    CP56Time2a_createFromMsTimestamp(&ts, timeVal);
+    CP56Time2a_setInvalid(&ts, true);
+
+    dataobjects->push_back(createDataObject("M_ME_TE_1", 45, 988, CS101_COT_SPONTANEOUS, (int64_t)1000, false, false, false, false, false, &ts));
+
+    Reading* reading = new Reading(std::string("TM5"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_ME_TE_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(988, InformationObject_getObjectAddress(io));
+    CP56Time2a rcvdTimestamp = MeasuredValueScaledWithCP56Time2a_getTimestamp((MeasuredValueScaledWithCP56Time2a)io);
+
+    ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_ME_TF_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    struct sCP56Time2a ts;
+
+    uint64_t timeVal = Hal_getTimeInMs();
+
+    CP56Time2a_createFromMsTimestamp(&ts, timeVal);
+    CP56Time2a_setInvalid(&ts, true);
+
+    dataobjects->push_back(createDataObject("M_ME_TF_1", 45, 989, CS101_COT_SPONTANEOUS, (float)2.f, false, false, false, false, false, &ts));
+
+    Reading* reading = new Reading(std::string("TM6"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_ME_TF_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(989, InformationObject_getObjectAddress(io));
+    CP56Time2a rcvdTimestamp = MeasuredValueShortWithCP56Time2a_getTimestamp((MeasuredValueShortWithCP56Time2a)io);
+
+    ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+    InformationObject_destroy(io);
 
     delete reading;
 

@@ -49,6 +49,11 @@ IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
 
     IEC104DataPoint* dp = m_exchangeDefinitions[ca][ioa];
 
+    if (dp) {
+        if (dp->isMessageTypeMatching(typeId) == false)
+            dp = nullptr;
+    }
+
     return dp;
 }
 
@@ -220,6 +225,17 @@ IEC104Server::_monitoringThread()
     }
 }
 
+static void
+setTimestamp(CP56Time2a destTime, CP56Time2a srcTime)
+{
+    if (srcTime) {
+        memcpy(destTime, srcTime, sizeof(struct sCP56Time2a));
+    }
+    else {
+        CP56Time2a_createFromMsTimestamp(destTime, Hal_getTimeInMs());
+    }
+}
+
 void
 IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, DatapointValue* value, CP56Time2a ts, uint8_t quality)
 {
@@ -235,6 +251,10 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 }
 
                 dp->m_value.sp.quality = quality;
+
+                if (typeId == M_SP_TB_1) {
+                    setTimestamp(&(dp->m_value.ts), ts);
+                }
             }
 
             break;
@@ -247,6 +267,10 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 }
 
                 dp->m_value.dp.quality = quality;
+
+                if (typeId == M_DP_TB_1) {
+                    setTimestamp(&(dp->m_value.ts), ts);
+                }
             }
 
             break;
@@ -260,6 +284,10 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 }
 
                 dp->m_value.stepPos.quality = quality;
+
+                if (typeId == M_ST_TB_1) {
+                    setTimestamp(&(dp->m_value.ts), ts);
+                }
             }
             break;
 
@@ -271,6 +299,10 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 }
 
                 dp->m_value.mv_normalized.quality = quality;
+
+                if (typeId == M_ME_TD_1) {
+                    setTimestamp(&(dp->m_value.ts), ts);
+                }
             }
 
             break;
@@ -283,6 +315,10 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 }
 
                 dp->m_value.mv_scaled.quality = quality;
+
+                if (typeId == M_ME_TE_1) {
+                    setTimestamp(&(dp->m_value.ts), ts);
+                }
             }
 
             break;
@@ -295,6 +331,10 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 }
 
                 dp->m_value.mv_short.quality = quality;
+
+                if (typeId == M_ME_TF_1) {
+                    setTimestamp(&(dp->m_value.ts), ts);
+                }
             }
 
             break;
@@ -319,9 +359,33 @@ IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmis
                 }
                 break;
 
+            case M_SP_TB_1:
+                {
+                    io = (InformationObject)SinglePointWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.sp.value, dp->m_value.sp.quality, &(dp->m_value.ts));
+                }
+                break;
+
             case M_DP_NA_1:
                 {
                     io = (InformationObject)DoublePointInformation_create(NULL, dp->m_ioa, (DoublePointValue)dp->m_value.dp.quality, dp->m_value.dp.quality);
+                }
+                break;
+
+            case M_DP_TB_1:
+                {
+                    io = (InformationObject)DoublePointWithCP56Time2a_create(NULL, dp->m_ioa, (DoublePointValue)dp->m_value.dp.quality, dp->m_value.dp.quality, &(dp->m_value.ts));
+                }
+                break;
+
+            case M_ST_NA_1:
+                {
+                    io = (InformationObject)StepPositionInformation_create(NULL, dp->m_ioa, dp->m_value.stepPos.posValue, dp->m_value.stepPos.transient, dp->m_value.stepPos.quality);
+                }
+                break;
+
+            case M_ST_TB_1:
+                {
+                    io = (InformationObject)StepPositionWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.stepPos.posValue, dp->m_value.stepPos.transient, dp->m_value.stepPos.quality, &(dp->m_value.ts));
                 }
                 break;
 
@@ -331,9 +395,21 @@ IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmis
                 }
                 break;
 
+             case M_ME_TD_1:
+                {
+                    io = (InformationObject)MeasuredValueNormalizedWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality, &(dp->m_value.ts));
+                }
+                break;
+
             case M_ME_NB_1:
                 {
                     io = (InformationObject)MeasuredValueScaled_create(NULL, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality);
+                }
+                break;
+
+            case M_ME_TE_1:
+                {
+                    io = (InformationObject)MeasuredValueScaledWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality, &(dp->m_value.ts));
                 }
                 break;
 
@@ -341,7 +417,13 @@ IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmis
                 {
                     io = (InformationObject)MeasuredValueShort_create(NULL, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality);
                 }
-                break;           
+                break;
+
+            case M_ME_TF_1:
+                {
+                    io = (InformationObject)MeasuredValueShortWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality, &(dp->m_value.ts));
+                }
+                break;
 
             default:
                 m_log->error("Unsupported type ID %i", typeId);
@@ -833,10 +915,8 @@ IEC104Server::send(const vector<Reading*>& readings)
 
         for (Datapoint* dp : dataPoints) {
 
-            if (dp->getName() == "data_object") {
-
-               // m_log->info("Received data_object");
-              
+            if (dp->getName() == "data_object")
+            {  
                 int ca = -1;
                 int ioa = -1;
                 CS101_CauseOfTransmission cot = CS101_COT_UNKNOWN_COT;
@@ -871,6 +951,7 @@ IEC104Server::send(const vector<Reading*>& readings)
                     }
                     else if (objDp->getName() == "do_type") {
                         type = IEC104DataPoint::getTypeIdFromString(attrVal.toStringValue());
+                        printf("TYPE: %s (%i)\n", attrVal.toStringValue().c_str(), type);
                     }
                     else if (objDp->getName() == "do_value") {
                         value = new DatapointValue(attrVal);
@@ -913,8 +994,6 @@ IEC104Server::send(const vector<Reading*>& readings)
                     }
                 }
 
-               // m_log->info("     data_object - CA: %i IOA: %i COT: %i", ca, ioa, cot);
-
                 if (cot == CS101_COT_ACTIVATION_CON)
                 {
                     handleActCon(type, ca, ioa);
@@ -925,14 +1004,16 @@ IEC104Server::send(const vector<Reading*>& readings)
                 }
                 else if (ca != -1 && ioa != -1 && cot != CS101_COT_UNKNOWN_COT && type != -1) {
 
-                    IEC104DataPoint* dp = m_getDataPoint(ca, ioa, 0);
+                    IEC104DataPoint* dp = m_getDataPoint(ca, ioa, type);
 
                     if (dp) {
 
                         CP56Time2a ts = NULL;
 
+                        struct sCP56Time2a _ts;
+
                         if (hasTimestamp) {
-                            ts = CP56Time2a_createFromMsTimestamp(NULL, timestamp);
+                            ts = CP56Time2a_createFromMsTimestamp(&_ts, timestamp);
 
                             if (ts) {
                                 CP56Time2a_setInvalid(ts, ts_iv);
@@ -949,7 +1030,7 @@ IEC104Server::send(const vector<Reading*>& readings)
                         }
                     }
                     else {
-                        m_log->error("data point %i:%i not found", ca, ioa);
+                        m_log->error("data point %i:%i not found or type not expected", ca, ioa);
                     }
                 }
 
@@ -995,14 +1076,14 @@ IEC104Server::rawMessageHandler(void* parameter,
                                      int msgSize, bool sent)
 {
     if (sent)
-        Logger::getLogger()->info("SEND: ");
+        Logger::getLogger()->debug("SEND: ");
     else
-        Logger::getLogger()->info("RCVD: ");
+        Logger::getLogger()->debug("RCVD: ");
 
     int i;
     for (i = 0; i < msgSize; i++)
     {
-        Logger::getLogger()->info("%02x ", msg[i]);
+        Logger::getLogger()->debug("%02x ", msg[i]);
     }
 }
 
