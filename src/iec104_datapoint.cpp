@@ -186,17 +186,20 @@ IEC104DataPoint::typeIdToDataType(int typeId)
     return dataType;
 }
 
-int IEC104DataPoint::getTypeIdFromString(std::string typeIdStr)
+int
+IEC104DataPoint::getTypeIdFromString(std::string typeIdStr)
 {
     return mapAsduTypeId[typeIdStr];
 }
 
-std::string IEC104DataPoint::getStringFromTypeID(int typeId)
+std::string
+IEC104DataPoint::getStringFromTypeID(int typeId)
 {
     return mapAsduTypeIdStr[typeId];
 }
 
-bool IEC104DataPoint::isMonitoringType()
+bool
+IEC104DataPoint::isMonitoringType()
 {
     if (m_isCommand)
         return false;
@@ -204,9 +207,73 @@ bool IEC104DataPoint::isMonitoringType()
         return true;
 }
 
-bool IEC104DataPoint::isCommand()
+bool
+IEC104DataPoint::isCommand()
 {
     return m_isCommand;
+}
+
+bool
+IEC104DataPoint::isMessageTypeMatching(int expectedType)
+{
+    bool isMatching = false;
+
+        switch (expectedType) {
+
+        case M_SP_NA_1:
+        case M_SP_TB_1:
+            if (m_type == IEC60870_TYPE_SP) {
+                isMatching = true;
+            }
+
+            break;
+
+        case M_DP_NA_1:
+        case M_DP_TB_1:
+            if (m_type == IEC60870_TYPE_DP) {
+                isMatching = true;
+            }
+
+            break;
+
+        case M_ME_NA_1:
+        case M_ME_TD_1:
+            if (m_type == IEC60870_TYPE_NORMALIZED) {
+                isMatching = true;
+            }
+
+            break;
+
+        case M_ME_NB_1:
+        case M_ME_TE_1:
+            if (m_type == IEC60870_TYPE_SCALED) {
+                isMatching = true;
+            }
+
+            break;
+
+        case M_ME_NC_1:
+        case M_ME_TF_1:
+            if (m_type == IEC60870_TYPE_SHORT) {
+                isMatching = true;
+            }
+
+            break;
+
+        case M_ST_NA_1:
+        case M_ST_TB_1:
+            if (m_type == IEC60870_TYPE_STEP_POS) {
+                isMatching = true;
+            }
+
+            break;
+
+        default:
+            //Type not supported
+            break;
+    }
+
+    return isMatching;
 }
 
 bool IEC104DataPoint::isMatchingCommand(int typeId)
