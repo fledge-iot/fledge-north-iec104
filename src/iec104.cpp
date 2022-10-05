@@ -253,7 +253,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 dp->m_value.sp.quality = quality;
 
                 if (typeId == M_SP_TB_1) {
-                    setTimestamp(&(dp->m_value.ts), ts);
+                    setTimestamp(&(dp->m_ts), ts);
                 }
             }
 
@@ -269,7 +269,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 dp->m_value.dp.quality = quality;
 
                 if (typeId == M_DP_TB_1) {
-                    setTimestamp(&(dp->m_value.ts), ts);
+                    setTimestamp(&(dp->m_ts), ts);
                 }
             }
 
@@ -286,7 +286,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 dp->m_value.stepPos.quality = quality;
 
                 if (typeId == M_ST_TB_1) {
-                    setTimestamp(&(dp->m_value.ts), ts);
+                    setTimestamp(&(dp->m_ts), ts);
                 }
             }
             break;
@@ -301,7 +301,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 dp->m_value.mv_normalized.quality = quality;
 
                 if (typeId == M_ME_TD_1) {
-                    setTimestamp(&(dp->m_value.ts), ts);
+                    setTimestamp(&(dp->m_ts), ts);
                 }
             }
 
@@ -317,7 +317,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 dp->m_value.mv_scaled.quality = quality;
 
                 if (typeId == M_ME_TE_1) {
-                    setTimestamp(&(dp->m_value.ts), ts);
+                    setTimestamp(&(dp->m_ts), ts);
                 }
             }
 
@@ -333,7 +333,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 dp->m_value.mv_short.quality = quality;
 
                 if (typeId == M_ME_TF_1) {
-                    setTimestamp(&(dp->m_value.ts), ts);
+                    setTimestamp(&(dp->m_ts), ts);
                 }
             }
 
@@ -361,19 +361,19 @@ IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmis
 
             case M_SP_TB_1:
                 {
-                    io = (InformationObject)SinglePointWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.sp.value, dp->m_value.sp.quality, &(dp->m_value.ts));
+                    io = (InformationObject)SinglePointWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.sp.value, dp->m_value.sp.quality, &(dp->m_ts));
                 }
                 break;
 
             case M_DP_NA_1:
                 {
-                    io = (InformationObject)DoublePointInformation_create(NULL, dp->m_ioa, (DoublePointValue)dp->m_value.dp.quality, dp->m_value.dp.quality);
+                    io = (InformationObject)DoublePointInformation_create(NULL, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality);
                 }
                 break;
 
             case M_DP_TB_1:
                 {
-                    io = (InformationObject)DoublePointWithCP56Time2a_create(NULL, dp->m_ioa, (DoublePointValue)dp->m_value.dp.quality, dp->m_value.dp.quality, &(dp->m_value.ts));
+                    io = (InformationObject)DoublePointWithCP56Time2a_create(NULL, dp->m_ioa, (DoublePointValue)dp->m_value.dp.value, dp->m_value.dp.quality, &(dp->m_ts));
                 }
                 break;
 
@@ -385,7 +385,7 @@ IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmis
 
             case M_ST_TB_1:
                 {
-                    io = (InformationObject)StepPositionWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.stepPos.posValue, dp->m_value.stepPos.transient, dp->m_value.stepPos.quality, &(dp->m_value.ts));
+                    io = (InformationObject)StepPositionWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.stepPos.posValue, dp->m_value.stepPos.transient, dp->m_value.stepPos.quality, &(dp->m_ts));
                 }
                 break;
 
@@ -397,7 +397,7 @@ IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmis
 
              case M_ME_TD_1:
                 {
-                    io = (InformationObject)MeasuredValueNormalizedWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality, &(dp->m_value.ts));
+                    io = (InformationObject)MeasuredValueNormalizedWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality, &(dp->m_ts));
                 }
                 break;
 
@@ -409,7 +409,7 @@ IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmis
 
             case M_ME_TE_1:
                 {
-                    io = (InformationObject)MeasuredValueScaledWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.mv_normalized.value, dp->m_value.mv_normalized.quality, &(dp->m_value.ts));
+                    io = (InformationObject)MeasuredValueScaledWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.mv_scaled.value, dp->m_value.mv_scaled.quality, &(dp->m_ts));
                 }
                 break;
 
@@ -421,7 +421,7 @@ IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmis
 
             case M_ME_TF_1:
                 {
-                    io = (InformationObject)MeasuredValueShortWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality, &(dp->m_value.ts));
+                    io = (InformationObject)MeasuredValueShortWithCP56Time2a_create(NULL, dp->m_ioa, dp->m_value.mv_short.value, dp->m_value.mv_short.quality, &(dp->m_ts));
                 }
                 break;
 

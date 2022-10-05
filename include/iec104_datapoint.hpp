@@ -112,10 +112,9 @@ public:
             unsigned int active : 1;
             unsigned int refIoa : 24;
         } param_mv; /* IEC60870_TYPE_PARAM_MV_... */
-
-        struct sCP56Time2a ts;
-
     } m_value;
+
+    struct sCP56Time2a m_ts;
 };
 
 #endif /* IEC104_DATAPOINT_H */
