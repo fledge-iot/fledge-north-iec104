@@ -334,6 +334,22 @@ TEST_F(SendSpontDataTest, CreateReading_M_SP_NA_1)
 
     io = CS101_ASDU_getElement(asdu, 0);
     ASSERT_EQ(672, InformationObject_getObjectAddress(io));
+
+    ASSERT_EQ(true, SinglePointInformation_getValue((SinglePointInformation)io));
+
+    InformationObject_destroy(io);
+
+    asdu = receivedAsdu.at(1);
+
+    ASSERT_EQ(M_SP_NA_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(673, InformationObject_getObjectAddress(io));
+
+    ASSERT_EQ(false, SinglePointInformation_getValue((SinglePointInformation)io));
+
     InformationObject_destroy(io);
 
     delete reading;
@@ -341,7 +357,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_SP_NA_1)
     delete dataobjects;
 }
 
-TEST_F(SendSpontDataTest, CreateReading_M_SP_TA_1)
+TEST_F(SendSpontDataTest, CreateReading_M_SP_TB_1_On)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
@@ -389,6 +405,65 @@ TEST_F(SendSpontDataTest, CreateReading_M_SP_TA_1)
 
     ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
 
+    ASSERT_EQ(true, SinglePointInformation_getValue((SinglePointInformation)io));
+
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_SP_TB_1_Off)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    struct sCP56Time2a ts;
+
+    uint64_t timeVal = Hal_getTimeInMs();
+
+    CP56Time2a_createFromMsTimestamp(&ts, timeVal);
+    CP56Time2a_setInvalid(&ts, true);
+
+    dataobjects->push_back(createDataObject("M_SP_TB_1", 45, 674, CS101_COT_SPONTANEOUS, (int64_t)0, false, false, false, false, false, &ts));
+
+    Reading* reading = new Reading(std::string("TS3"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_SP_TB_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(674, InformationObject_getObjectAddress(io));
+    CP56Time2a rcvdTimestamp = SinglePointWithCP56Time2a_getTimestamp((SinglePointWithCP56Time2a)io);
+
+    ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+    ASSERT_EQ(false, SinglePointInformation_getValue((SinglePointInformation)io));
+
     InformationObject_destroy(io);
 
     delete reading;
@@ -409,7 +484,10 @@ TEST_F(SendSpontDataTest, CreateReading_M_DP_NA_1)
 
     auto* dataobjects = new vector<Datapoint*>;
 
-    dataobjects->push_back(createDataObject("M_DP_NA_1", 45, 700, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_DP_NA_1", 45, 700, CS101_COT_SPONTANEOUS, (int64_t)0, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_DP_NA_1", 45, 700, CS101_COT_SPONTANEOUS, (int64_t)1, true, false, false, false, true, NULL));
+    dataobjects->push_back(createDataObject("M_DP_NA_1", 45, 700, CS101_COT_SPONTANEOUS, (int64_t)2, false, false, false, true, false, NULL));
+    dataobjects->push_back(createDataObject("M_DP_NA_1", 45, 700, CS101_COT_SPONTANEOUS, (int64_t)3, false, true, false, false, false, NULL));
     dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 812, CS101_COT_SPONTANEOUS, (int64_t)0, false, false, false, false, false, NULL));
 
     Reading* reading = new Reading(std::string("TS3"), *dataobjects);
@@ -422,7 +500,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_DP_NA_1)
 
     Thread_sleep(500);
 
-    ASSERT_EQ(1, receivedAsdu.size());
+    ASSERT_EQ(4, receivedAsdu.size());
 
     InformationObject io;
     
@@ -434,6 +512,54 @@ TEST_F(SendSpontDataTest, CreateReading_M_DP_NA_1)
 
     io = CS101_ASDU_getElement(asdu, 0);
     ASSERT_EQ(700, InformationObject_getObjectAddress(io));
+
+    ASSERT_EQ(0, DoublePointInformation_getValue((DoublePointInformation)io));
+
+    InformationObject_destroy(io);
+
+    asdu = receivedAsdu.at(1);
+
+    ASSERT_EQ(M_DP_NA_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(700, InformationObject_getObjectAddress(io));
+
+    ASSERT_EQ(IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL, DoublePointInformation_getQuality((DoublePointInformation)io));
+
+    ASSERT_EQ(1, DoublePointInformation_getValue((DoublePointInformation)io));
+
+    InformationObject_destroy(io);
+
+    asdu = receivedAsdu.at(2);
+
+    ASSERT_EQ(M_DP_NA_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(700, InformationObject_getObjectAddress(io));
+
+    ASSERT_EQ(IEC60870_QUALITY_SUBSTITUTED, DoublePointInformation_getQuality((DoublePointInformation)io));
+
+    ASSERT_EQ(2, DoublePointInformation_getValue((DoublePointInformation)io));
+
+    InformationObject_destroy(io);
+
+    asdu = receivedAsdu.at(3);
+
+    ASSERT_EQ(M_DP_NA_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(700, InformationObject_getObjectAddress(io));
+
+    ASSERT_EQ(IEC60870_QUALITY_BLOCKED, DoublePointInformation_getQuality((DoublePointInformation)io));
+
+    ASSERT_EQ(3, DoublePointInformation_getValue((DoublePointInformation)io));
+
     InformationObject_destroy(io);
 
     delete reading;
@@ -526,6 +652,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NA_1)
     auto* dataobjects = new vector<Datapoint*>;
 
     dataobjects->push_back(createDataObject("M_ME_NA_1", 45, 984, CS101_COT_SPONTANEOUS, (float)0.1f, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ME_NA_1", 45, 984, CS101_COT_SPONTANEOUS, (float)1.0f, false, false, true, false, false, NULL));
 
     Reading* reading = new Reading(std::string("TM1"), *dataobjects);
 
@@ -537,7 +664,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NA_1)
 
     Thread_sleep(500);
 
-    ASSERT_EQ(1, receivedAsdu.size());
+    ASSERT_EQ(2, receivedAsdu.size());
 
     InformationObject io;
     
@@ -549,6 +676,21 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NA_1)
 
     io = CS101_ASDU_getElement(asdu, 0);
     ASSERT_EQ(984,InformationObject_getObjectAddress(io));
+    ASSERT_NEAR(0.1f, MeasuredValueNormalized_getValue((MeasuredValueNormalized)io), 0.01f);
+
+    InformationObject_destroy(io);
+
+    asdu = receivedAsdu.at(1);
+
+    ASSERT_EQ(M_ME_NA_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(984,InformationObject_getObjectAddress(io));
+    ASSERT_EQ(IEC60870_QUALITY_OVERFLOW, MeasuredValueNormalized_getQuality((MeasuredValueNormalized)io));
+    ASSERT_NEAR(1.0f, MeasuredValueNormalized_getValue((MeasuredValueNormalized)io), 0.01f);
+
     InformationObject_destroy(io);
 
     delete reading;
@@ -569,7 +711,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NB_1)
 
     auto* dataobjects = new vector<Datapoint*>;
 
-    dataobjects->push_back(createDataObject("M_ME_NB_1", 45, 985, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ME_NB_1", 45, 985, CS101_COT_SPONTANEOUS, (int64_t)-1234, false, false, false, false, false, NULL));
 
     Reading* reading = new Reading(std::string("TM2"), *dataobjects);
 
@@ -593,6 +735,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NB_1)
 
     io = CS101_ASDU_getElement(asdu, 0);
     ASSERT_EQ(985,InformationObject_getObjectAddress(io));
+    ASSERT_EQ(-1234, MeasuredValueScaled_getValue((MeasuredValueScaled)io));
     InformationObject_destroy(io);
 
     delete reading;
@@ -613,7 +756,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NC_1)
 
     auto* dataobjects = new vector<Datapoint*>;
 
-    dataobjects->push_back(createDataObject("M_ME_NC_1", 45, 986, CS101_COT_SPONTANEOUS, (float)0.1f, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ME_NC_1", 45, 986, CS101_COT_SPONTANEOUS, (float)-0.01f, false, false, false, false, false, NULL));
 
     Reading* reading = new Reading(std::string("TM3"), *dataobjects);
 
@@ -637,6 +780,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NC_1)
 
     io = CS101_ASDU_getElement(asdu, 0);
     ASSERT_EQ(986,InformationObject_getObjectAddress(io));
+    ASSERT_NEAR(-0.01f, MeasuredValueShort_getValue((MeasuredValueShort)io), 0.001f);
     InformationObject_destroy(io);
 
     delete reading;
@@ -664,7 +808,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_TD_1)
     CP56Time2a_createFromMsTimestamp(&ts, timeVal);
     CP56Time2a_setInvalid(&ts, true);
 
-    dataobjects->push_back(createDataObject("M_ME_TD_1", 45, 987, CS101_COT_SPONTANEOUS, (float)2.f, false, false, false, false, false, &ts));
+    dataobjects->push_back(createDataObject("M_ME_TD_1", 45, 987, CS101_COT_SPONTANEOUS, (float)-0.1f, false, false, false, false, false, &ts));
 
     Reading* reading = new Reading(std::string("TM4"), *dataobjects);
 
@@ -691,6 +835,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_TD_1)
     CP56Time2a rcvdTimestamp = MeasuredValueNormalizedWithCP56Time2a_getTimestamp((MeasuredValueNormalizedWithCP56Time2a)io);
 
     ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+    ASSERT_NEAR(-0.1f, MeasuredValueNormalized_getValue((MeasuredValueNormalized)io), 0.01f);
 
     InformationObject_destroy(io);
 
@@ -747,6 +893,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_TE_1)
 
     ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
 
+    ASSERT_EQ(1000, MeasuredValueScaled_getValue((MeasuredValueScaled)io));
+
     InformationObject_destroy(io);
 
     delete reading;
@@ -775,6 +923,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_TF_1)
     CP56Time2a_setInvalid(&ts, true);
 
     dataobjects->push_back(createDataObject("M_ME_TF_1", 45, 989, CS101_COT_SPONTANEOUS, (float)2.f, false, false, false, false, false, &ts));
+    dataobjects->push_back(createDataObject("M_ME_TF_1", 45, 989, CS101_COT_SPONTANEOUS, (float)99.f, true, false, true, false, false, &ts));
 
     Reading* reading = new Reading(std::string("TM6"), *dataobjects);
 
@@ -786,7 +935,7 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_TF_1)
 
     Thread_sleep(500);
 
-    ASSERT_EQ(1, receivedAsdu.size());
+    ASSERT_EQ(2, receivedAsdu.size());
 
     InformationObject io;
 
@@ -801,6 +950,26 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_TF_1)
     CP56Time2a rcvdTimestamp = MeasuredValueShortWithCP56Time2a_getTimestamp((MeasuredValueShortWithCP56Time2a)io);
 
     ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+    ASSERT_NEAR(2.f, MeasuredValueShort_getValue((MeasuredValueShort)io), 0.001f);
+
+    InformationObject_destroy(io);
+
+    asdu = receivedAsdu.at(1);
+
+    ASSERT_EQ(M_ME_TF_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(989, InformationObject_getObjectAddress(io));
+    rcvdTimestamp = MeasuredValueShortWithCP56Time2a_getTimestamp((MeasuredValueShortWithCP56Time2a)io);
+
+    ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+    ASSERT_EQ(IEC60870_QUALITY_INVALID | IEC60870_QUALITY_OVERFLOW, MeasuredValueShort_getQuality((MeasuredValueShort)io));
+
+    ASSERT_NEAR(99.f, MeasuredValueShort_getValue((MeasuredValueShort)io), 0.001f);
 
     InformationObject_destroy(io);
 
