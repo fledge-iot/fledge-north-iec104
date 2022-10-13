@@ -129,6 +129,7 @@ private:
     static void connectionEventHandler(void* parameter, IMasterConnection con,
                                        CS104_PeerConnectionEvent event);
     CS104_Slave m_slave{};
+    TLSConfiguration m_tlsConfig = nullptr;
     CS101_AppLayerParameters alParams;
     std::string m_name;
     Logger* m_log;
@@ -142,6 +143,8 @@ private:
     bool m_started = false;
     std::thread* m_monitoringThread = nullptr;
     void _monitoringThread();
+
+    bool createTLSConfiguration();
 };
 
 #endif
