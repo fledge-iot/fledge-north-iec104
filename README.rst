@@ -31,6 +31,7 @@ Then, you can build lib60870 with:
   $ cd build
   $ cmake ..
   $ make
+  $ make install
 
 
 
