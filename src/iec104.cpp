@@ -21,7 +21,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <fledge/utils.h>
+#include <utils.h>
 
 
 using namespace std;
@@ -300,7 +300,14 @@ IEC104Server::configure(const ConfigCategory* config)
 
     const std::string dataExchange = config->getValue("exchanged_data");
 
-    const std::string tlsConfig = config->getValue("tls_conf");
+    std::string tlsConfig = "";
+
+    if (config->itemExists("tls_conf") == false) {
+        m_log->error("Missing TLS configuration");
+    }
+    else {
+        tlsConfig = config->getValue("tls_conf");
+    }
 
     setJsonConfig(protocolStack, dataExchange, tlsConfig);
 }

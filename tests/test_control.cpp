@@ -60,7 +60,7 @@ static string protocol_stack = QUOTE({
                 "ioaddr_size":3,
                 "asdu_size":0,
                 "time_sync":false,
-                "cmd_exec_timeout":5,
+                "cmd_exec_timeout":1,
                 "cmd_recv_timeout":1,
                 "accept_cmd_with_time":2,
                 "filter_orig":false,
@@ -80,10 +80,14 @@ static string protocol_stack = QUOTE({
     });
     
 static string tls = QUOTE({
-        "tls_conf:" : {
-            "private_key" : "server-key.pem",
-            "server_cert" : "server.cer",
-            "ca_cert" : "root.cer"
+        "tls_conf" : {
+            "private_key" : "iec104_server.key",
+            "own_cert" : "iec104_server.cer",
+            "ca_certs" : [
+                {
+                    "cert_file": "iec104_ca.cer"
+                }
+            ]
         }
     });
 
@@ -130,6 +134,67 @@ static string exchanged_data = QUOTE({
                           "address":"45-10005",
                           "typeid":"C_SC_NA_1",
                           "termination_timeout": 3000
+                       }
+                    ]
+                }
+            ]
+        }
+    });
+
+static string exchanged_data_2 = QUOTE({
+        "exchanged_data" : {
+            "name" : "iec104server",
+            "version" : "1.0",
+            "datapoints":[
+                {
+                    "label":"TS1",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-672",
+                          "typeid":"M_SP_NA_1"
+                       },
+                       {
+                          "name":"tase2",
+                          "address":"S_114562",
+                          "typeid":"Data_StateQTimeTagExtended"
+                       }
+                    ]
+                },
+                {
+                    "label":"TM1",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-984",
+                          "typeid":"M_ME_NA_1"
+                       },
+                       {
+                          "name":"tase2",
+                          "address":"S_114562",
+                          "typeid":"Data_RealQ"
+                       }
+                    ]
+                },
+                {
+                    "label":"CM1",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-10005",
+                          "typeid":"C_SC_NA_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"CM2",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-10010",
+                          "typeid":"C_SE_TC_1",
+                          "termination_timeout": 1
                        }
                     ]
                 }
@@ -324,6 +389,34 @@ TEST_F(ControlTest, ReceiveSinglePointCommand)
     InformationObject_destroy(sc);
 
     Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+}
+
+TEST_F(ControlTest, ReceiveSetpointCommandShortWithTimestamp)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data_2, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    iec104Server->ActConTimeout(200);
+    iec104Server->ActTermTimeout(200);
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject sc = (InformationObject)SetpointCommandShortWithCP56Time2a_create(NULL, 10010, 1.5f, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    free(timestamp);
+
+    Thread_sleep(1500);
 
     ASSERT_EQ(1, operateHandlerCalled);
 }
