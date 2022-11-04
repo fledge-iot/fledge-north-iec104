@@ -286,14 +286,14 @@ TEST_F(ConnectionHandlerTest, NormalConnection)
 
 TEST_F(ConnectionHandlerTest, TLSConnection)
 {
-    setenv("FLEDGE_DATA", "./data", 1);
+    setenv("FLEDGE_DATA", "./tests/data", 1);
 
     TLSConfiguration tlsConfig = TLSConfiguration_create();
 
-    TLSConfiguration_addCACertificateFromFile(tlsConfig, "data/etc/certs/iec104_ca.cer");
-    TLSConfiguration_setOwnCertificateFromFile(tlsConfig, "data/etc/certs/iec104_client.cer");
-    TLSConfiguration_setOwnKeyFromFile(tlsConfig, "data/etc/certs/iec104_client.key", NULL);
-    TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, "data/etc/certs/iec104_server.cer");
+    TLSConfiguration_addCACertificateFromFile(tlsConfig, "tests/data/etc/certs/iec104_ca.cer");
+    TLSConfiguration_setOwnCertificateFromFile(tlsConfig, "tests/data/etc/certs/iec104_client.cer");
+    TLSConfiguration_setOwnKeyFromFile(tlsConfig, "tests/data/etc/certs/iec104_client.key", NULL);
+    TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, "tests/data/etc/certs/iec104_server.cer");
     TLSConfiguration_setChainValidation(tlsConfig, true);
     TLSConfiguration_setAllowOnlyKnownCertificates(tlsConfig, true);
 
@@ -311,14 +311,14 @@ TEST_F(ConnectionHandlerTest, TLSConnection)
 
 TEST_F(ConnectionHandlerTest, TLSConnectionNoCaCertificate)
 {
-    setenv("FLEDGE_DATA", "./data", 1);
+    setenv("FLEDGE_DATA", "./tests/data", 1);
 
     TLSConfiguration tlsConfig = TLSConfiguration_create();
 
-    TLSConfiguration_addCACertificateFromFile(tlsConfig, "data/etc/certs/iec104_ca.cer");
-    TLSConfiguration_setOwnCertificateFromFile(tlsConfig, "data/etc/certs/iec104_client.cer");
-    TLSConfiguration_setOwnKeyFromFile(tlsConfig, "data/etc/certs/iec104_client.key", NULL);
-    TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, "data/etc/certs/iec104_server.cer");
+    TLSConfiguration_addCACertificateFromFile(tlsConfig, "tests/data/etc/certs/iec104_ca.cer");
+    TLSConfiguration_setOwnCertificateFromFile(tlsConfig, "tests/data/etc/certs/iec104_client.cer");
+    TLSConfiguration_setOwnKeyFromFile(tlsConfig, "tests/data/etc/certs/iec104_client.key", NULL);
+    TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, "tests/data/etc/certs/iec104_server.cer");
     TLSConfiguration_setChainValidation(tlsConfig, true);
     TLSConfiguration_setAllowOnlyKnownCertificates(tlsConfig, true);
 
@@ -336,14 +336,14 @@ TEST_F(ConnectionHandlerTest, TLSConnectionNoCaCertificate)
 
 TEST_F(ConnectionHandlerTest, TLSConnectionNoRemoteOrCaCertificate)
 {
-    setenv("FLEDGE_DATA", "./data", 1);
+    setenv("FLEDGE_DATA", "./tests/data", 1);
 
     TLSConfiguration tlsConfig = TLSConfiguration_create();
 
-    TLSConfiguration_addCACertificateFromFile(tlsConfig, "data/etc/certs/iec104_ca.cer");
-    TLSConfiguration_setOwnCertificateFromFile(tlsConfig, "data/etc/certs/iec104_client.cer");
-    TLSConfiguration_setOwnKeyFromFile(tlsConfig, "data/etc/certs/iec104_client.key", NULL);
-    TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, "data/etc/certs/iec104_server.cer");
+    TLSConfiguration_addCACertificateFromFile(tlsConfig, "tests/data/etc/certs/iec104_ca.cer");
+    TLSConfiguration_setOwnCertificateFromFile(tlsConfig, "tests/data/etc/certs/iec104_client.cer");
+    TLSConfiguration_setOwnKeyFromFile(tlsConfig, "tests/data/etc/certs/iec104_client.key", NULL);
+    TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, "tests/data/etc/certs/iec104_server.cer");
     TLSConfiguration_setChainValidation(tlsConfig, true);
     TLSConfiguration_setAllowOnlyKnownCertificates(tlsConfig, true);
 
