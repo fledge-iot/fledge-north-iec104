@@ -977,3 +977,40 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_TF_1)
 
     delete dataobjects;
 }
+
+TEST_F(SendSpontDataTest, CreateReading_differentSpontaneousCOTs)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    dataobjects->push_back(createDataObject("M_ME_NA_1", 45, 984, CS101_COT_SPONTANEOUS, (float)0.1f, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ME_NA_1", 45, 984, CS101_COT_BACKGROUND_SCAN, (float)1.0f, false, false, true, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ME_NA_1", 45, 984, CS101_COT_PERIODIC, (float)1.0f, false, false, true, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ME_NA_1", 45, 984, CS101_COT_RETURN_INFO_LOCAL, (float)1.0f, false, false, true, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ME_NA_1", 45, 984, CS101_COT_RETURN_INFO_REMOTE, (float)1.0f, false, false, true, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ME_NA_1", 45, 984, CS101_COT_INTERROGATED_BY_STATION, (float)1.0f, false, false, true, false, false, NULL));
+
+    Reading* reading = new Reading(std::string("TM1"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(5, receivedAsdu.size());
+
+    delete reading;
+
+    delete dataobjects;
+}

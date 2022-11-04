@@ -1152,7 +1152,10 @@ IEC104Server::send(const vector<Reading*>& readings)
                         // update internal value
                         m_updateDataPoint(dp, (IEC60870_5_TypeID)type, value, ts, qd);
 
-                        if (cot == CS101_COT_PERIODIC || cot == CS101_COT_SPONTANEOUS) {
+                        if (cot == CS101_COT_PERIODIC || cot == CS101_COT_SPONTANEOUS || 
+                            cot == CS101_COT_RETURN_INFO_REMOTE || cot == CS101_COT_RETURN_INFO_LOCAL || 
+                            cot == CS101_COT_BACKGROUND_SCAN)
+                        {
                             m_enqueueSpontDatapoint(dp, cot, (IEC60870_5_TypeID)type);
                         }
                     }
