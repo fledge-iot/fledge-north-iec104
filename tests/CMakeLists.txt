@@ -78,6 +78,9 @@ include_directories(${FLEDGE_INCLUDE_DIRS})
 # Add Fledge lib path
 link_directories(${FLEDGE_LIB_DIRS})
 
+# copy certificates to output
+file(COPY data DESTINATION ${CMAKE_BINARY_DIR}/tests)
+
 # Link runTests with what we want to test and the GTest and pthread library
 add_executable(RunTests ${unittests} ${SOURCES} version.h)
 

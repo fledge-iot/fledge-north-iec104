@@ -175,17 +175,29 @@ static const char* default_config = QUOTE({
             }
         })
     },
-    "tls" : {
+    "tls_conf" : {
         "description" : "tls parameters",
         "type" : "JSON",
         "displayName" : "TLS parameters",
         "order" : "4",
         "default" : QUOTE({      
-            "tls_conf:" : { 
-                "private_key" : "server-key.pem",
-                "server_cert" : "server.cer",
-                "ca_cert" : "root.cer"
-            }         
+            "tls_conf" : {
+                "private_key" : "iec104_server.key",
+                "own_cert" : "iec104_server.cer",
+                "ca_certs" : [
+                    {
+                        "cert_file": "iec104_ca.cer"
+                    },
+                    {
+                        "cert_file": "iec104_ca2.cer"
+                    }
+                ],
+                "remote_certs" : [
+                    {
+                        "cert_file": "iec104_client.cer"
+                    }
+                ]
+            }       
         })
     }
 });

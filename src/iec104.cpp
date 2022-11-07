@@ -21,6 +21,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <utils.h>
 
 
 using namespace std;
@@ -57,17 +58,136 @@ IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
     return dp;
 }
 
+bool
+IEC104Server::createTLSConfiguration()
+{
+    TLSConfiguration tlsConfig = TLSConfiguration_create();
+
+    if (tlsConfig)
+    {
+        bool tlsConfigOk = true;
+
+        string certificateStore = getDataDir() + string("/etc/certs/");
+
+        if (m_config->GetOwnCertificate().length() == 0 || m_config->GetPrivateKey().length() == 0) {
+            Logger::getLogger()->error("No private key and/or certificate configured for client");
+            tlsConfigOk = false;
+        }
+
+        if (m_config->GetOwnCertificate().empty() == false)
+        {
+            string ownCertFile = certificateStore + m_config->GetOwnCertificate();
+
+            if (access(ownCertFile.c_str(), R_OK) == 0) {
+
+                if (TLSConfiguration_setOwnCertificateFromFile(tlsConfig, ownCertFile.c_str()) == false) {
+                    Logger::getLogger()->error("Failed to load own certificate from file: %s", ownCertFile.c_str());
+                    tlsConfigOk = false;
+                }
+                
+            }
+            else {
+                Logger::getLogger()->error("Failed to access own certificate file: %s", ownCertFile.c_str());
+                tlsConfigOk = false;
+            }
+        }
+
+        if (m_config->GetPrivateKey().empty() == false)
+        {
+            string privateKeyFile = certificateStore + m_config->GetPrivateKey();
+
+            if (access(privateKeyFile.c_str(), R_OK) == 0) {
+                
+                if (TLSConfiguration_setOwnKeyFromFile(tlsConfig, privateKeyFile.c_str(), NULL) == false) {
+                    Logger::getLogger()->error("Failed to load private key from file: %s", privateKeyFile.c_str());
+                    tlsConfigOk = false;
+                }
+                
+            }
+            else {
+                Logger::getLogger()->error("Failed to access private key file: %s", privateKeyFile.c_str());
+                tlsConfigOk = false;
+            }
+        }
+
+        if (m_config->GetRemoteCertificates().size() > 0) {
+            TLSConfiguration_setAllowOnlyKnownCertificates(tlsConfig, true);
+
+            for (std::string& remoteCert : m_config->GetRemoteCertificates())
+            {
+                string remoteCertFile = certificateStore + remoteCert;
+
+                if (access(remoteCertFile.c_str(), R_OK) == 0) {
+                    if (TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, remoteCertFile.c_str()) == false) {
+                        Logger::getLogger()->warn("Failed to load remote certificate file: %s -> ignore certificate", remoteCertFile.c_str());
+                    }
+                }
+                else {
+                    Logger::getLogger()->warn("Failed to access remote certificate file: %s -> ignore certificate", remoteCertFile.c_str());
+                }
+
+            }
+        }
+        else {
+            TLSConfiguration_setAllowOnlyKnownCertificates(tlsConfig, false);
+        }
+
+        if (m_config->GetCaCertificates().size() > 0) {
+            TLSConfiguration_setChainValidation(tlsConfig, true);
+
+            for (std::string& caCert : m_config->GetCaCertificates())
+            {
+                string caCertFile = certificateStore + caCert;
+
+                if (access(caCertFile.c_str(), R_OK) == 0) {
+                    if (TLSConfiguration_addCACertificateFromFile(tlsConfig, caCertFile.c_str()) == false) {
+                        Logger::getLogger()->warn("Failed to load CA certificate file: %s -> ignore certificate", caCertFile.c_str());
+                    }
+                }
+                else {
+                    Logger::getLogger()->warn("Failed to access CA certificate file: %s -> ignore certificate", caCertFile.c_str());
+                }
+
+            }
+        }
+        else {
+            TLSConfiguration_setChainValidation(tlsConfig, false);
+        }
+
+        if (tlsConfigOk) {
+            m_tlsConfig = tlsConfig;
+        }
+        else {
+            TLSConfiguration_destroy(tlsConfig);
+            m_tlsConfig = nullptr;
+        }
+
+        return tlsConfigOk;
+    }
+    else {
+        return false;
+    }
+}
+
 void
 IEC104Server::setJsonConfig(const std::string& stackConfig,
-                                 const std::string& dataExchangeConfig,
+                                const std::string& dataExchangeConfig,
                                 const std::string& tlsConfig)
 {
     m_config->importExchangeConfig(dataExchangeConfig);
     m_config->importProtocolConfig(stackConfig);
+    m_config->importTlsConfig(tlsConfig);
 
     m_exchangeDefinitions = *m_config->getExchangeDefinitions();
 
-    m_slave = CS104_Slave_create(m_config->AsduQueueSize(), 100);
+    if (m_config->UseTLS()) {
+        if (createTLSConfiguration()) {
+            m_slave = CS104_Slave_createSecure(m_config->AsduQueueSize(), 100, m_tlsConfig);
+        }
+    }
+    else {
+       m_slave = CS104_Slave_create(m_config->AsduQueueSize(), 100);
+    }
 
     if (m_slave)
     {
@@ -180,7 +300,14 @@ IEC104Server::configure(const ConfigCategory* config)
 
     const std::string dataExchange = config->getValue("exchanged_data");
 
-    const std::string tlsConfig = std::string("");
+    std::string tlsConfig = "";
+
+    if (config->itemExists("tls_conf") == false) {
+        m_log->error("Missing TLS configuration");
+    }
+    else {
+        tlsConfig = config->getValue("tls_conf");
+    }
 
     setJsonConfig(protocolStack, dataExchange, tlsConfig);
 }
@@ -1025,7 +1152,10 @@ IEC104Server::send(const vector<Reading*>& readings)
                         // update internal value
                         m_updateDataPoint(dp, (IEC60870_5_TypeID)type, value, ts, qd);
 
-                        if (cot == CS101_COT_PERIODIC || cot == CS101_COT_SPONTANEOUS) {
+                        if (cot == CS101_COT_PERIODIC || cot == CS101_COT_SPONTANEOUS || 
+                            cot == CS101_COT_RETURN_INFO_REMOTE || cot == CS101_COT_RETURN_INFO_LOCAL || 
+                            cot == CS101_COT_BACKGROUND_SCAN)
+                        {
                             m_enqueueSpontDatapoint(dp, cot, (IEC60870_5_TypeID)type);
                         }
                     }
@@ -1595,6 +1725,12 @@ IEC104Server::stop()
         CS104_Slave_stop(m_slave);
         CS104_Slave_destroy(m_slave);
         m_slave = nullptr;
+    }
+
+    if (m_tlsConfig)
+    {
+        TLSConfiguration_destroy(m_tlsConfig);
+        m_tlsConfig = nullptr;
     }
 
     if (m_started == true)

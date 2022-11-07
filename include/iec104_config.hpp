@@ -21,6 +21,7 @@ public:
 
     void importProtocolConfig(const string& protocolConfig);
     void importExchangeConfig(const string& exchangeConfig);
+    void importTlsConfig(const string& tlsConfig);
 
     std::map<int, std::map<int, IEC104DataPoint*>>* getExchangeDefinitions() {return m_exchangeDefinitions;};
 
@@ -54,6 +55,11 @@ public:
     int CmdExecTimeout() {return m_cmdExecTimeout;};
 
     string& CmdDest() {return m_cmdDest;};
+
+    std::string& GetPrivateKey() {return m_privateKey;};
+    std::string& GetOwnCertificate() {return m_ownCertificate;};
+    std::vector<std::string>& GetRemoteCertificates() {return m_remoteCertificates;};
+    std::vector<std::string>& GetCaCertificates() {return m_caCertificates;};
 
 private:
 
@@ -96,6 +102,11 @@ private:
 
     std::map<int, std::map<int, IEC104DataPoint*>>* m_exchangeDefinitions = nullptr;
     std::map<int, int> m_allowedOriginators;
+
+    std::string m_privateKey;
+    std::string m_ownCertificate;
+    std::vector<std::string> m_remoteCertificates;
+    std::vector<std::string> m_caCertificates;
 };
 
 #endif /* IEC104_CONFIG_H */
