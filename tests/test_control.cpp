@@ -213,6 +213,10 @@ protected:
     void SetUp() override
     {
         operateHandlerCalled = 0;
+        asduHandlerCalled = 0;
+        actConReceived = 0;
+        actConNegative = false;
+        actTermReceived = 0;
 
         // Init iec104server object
         iec104Server = new IEC104Server();
@@ -241,6 +245,7 @@ protected:
 
     int asduHandlerCalled = 0;
     int actConReceived = 0;
+    bool actConNegative = false;
     int actTermReceived = 0;
 
     static bool m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu);
@@ -255,8 +260,11 @@ ControlTest::m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu
 
     printf("CS101_ASDU: type: %i ca: %i cot: %i\n", CS101_ASDU_getTypeID(asdu), CS101_ASDU_getCA(asdu), CS101_ASDU_getCOT(asdu));
     
+    self->actConNegative = false;
+
     if (CS101_ASDU_getCOT(asdu) == CS101_COT_ACTIVATION_CON) {
         self->actConReceived++;
+        self->actConNegative = CS101_ASDU_isNegative(asdu);
     }
 
     if (CS101_ASDU_getCOT(asdu) == CS101_COT_ACTIVATION_TERMINATION) {
@@ -419,6 +427,40 @@ TEST_F(ControlTest, ReceiveSetpointCommandShortWithTimestamp)
     Thread_sleep(1500);
 
     ASSERT_EQ(1, operateHandlerCalled);
+}
+
+TEST_F(ControlTest, ReceiveSetpointCommandShortWithInvalidTimestamp)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data_2, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    iec104Server->ActConTimeout(200);
+    iec104Server->ActTermTimeout(200);
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, 0);
+
+    InformationObject sc = (InformationObject)SetpointCommandShortWithCP56Time2a_create(NULL, 10010, 1.5f, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    free(timestamp);
+
+    Thread_sleep(1500);
+
+    /* expect the command to be ignored */
+    ASSERT_EQ(0, operateHandlerCalled);
+
+    /* expect negative ACT-CON */
+    ASSERT_EQ(1, asduHandlerCalled);
+    ASSERT_EQ(1, actConReceived);
+    ASSERT_TRUE(actConNegative);
 }
 
 TEST_F(ControlTest, SinglePointCommandUnknownCA)
