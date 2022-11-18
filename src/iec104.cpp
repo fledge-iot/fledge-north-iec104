@@ -1423,8 +1423,6 @@ IEC104Server::interrogationHandler(void* parameter,
                                         IMasterConnection connection,
                                         CS101_ASDU asdu, uint8_t qoi)
 {
-    //TODO return quality inalid/non-topical when value has not been initialized -> initialize with this quality flags!
-
     IEC104Server* self = (IEC104Server*)parameter;
 
     Logger::getLogger()->info("Received interrogation for group %i", qoi);
@@ -1468,6 +1466,13 @@ IEC104Server::interrogationHandler(void* parameter,
     return true;
 }
 
+/**
+ * @brief Check if a command type is supported by the plugin
+ *
+ * @param typeId type ID of the received command
+ * @return true the command is supported
+ * @return false the command is unsupported
+ */
 static bool
 isSupportedCommandType(IEC60870_5_TypeID typeId)
 {
@@ -1487,6 +1492,14 @@ isSupportedCommandType(IEC60870_5_TypeID typeId)
     return false;
 }
 
+/**
+ * @brief Check if a received command with timestamp has a valid time
+ *
+ * @param typeId type of received command
+ * @param io the information object of the received command
+ * @return true the time is valid -> accept command
+ * @return false  the time is invalid -> ingore command
+ */
 bool
 IEC104Server::checkIfCmdTimeIsValid(int typeId, InformationObject io)
 {
@@ -1571,8 +1584,8 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
 
                         IEC104DataPoint* dp = ld[ioa];
 
-                        if (dp) {
-
+                        if (dp) 
+                        {
                             auto typeId = CS101_ASDU_getTypeID(asdu);
 
                             if (dp->isMatchingCommand(typeId)) {
@@ -1587,6 +1600,15 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                         if (self->checkIfCmdTimeIsValid(typeId, io) == false) {
                                             self->m_log->warn("command (%i) for %i:%i has invalid timestamp -> ignore", typeId, ca, ioa);
                                             acceptCommand = false;
+
+                                            printf("Invalid timestmap -> ignore\n");
+                                            
+                                            /* send negative response -> according to IEC 60870-5-104 the command should be silently ignored instead! */
+                                            CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
+                                            CS101_ASDU_setNegative(asdu, true);
+
+                                            IMasterConnection_sendASDU(connection, asdu);
+
                                             sendResponse = false;
                                         }
                                         else {
