@@ -58,8 +58,10 @@ IEC104OutstandingCommand::sendActCon(bool negative)
 }
 
 void
-IEC104OutstandingCommand::sendActTerm()
+IEC104OutstandingCommand::sendActTerm(bool negative)
 {
+    CS101_ASDU_setNegative(m_receivedAsdu, negative);
+
     if(IMasterConnection_sendACT_TERM(m_connection, m_receivedAsdu) == false) {
         printf("Failed to send ACT-CON\n");
     }

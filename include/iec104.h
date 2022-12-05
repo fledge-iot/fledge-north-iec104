@@ -43,7 +43,7 @@ public:
     bool isSelect();
 
     void sendActCon(bool negative);
-    void sendActTerm();
+    void sendActTerm(bool negative);
 
     int CA() {return m_ca;};
     int IOA() {return m_ioa;};
@@ -108,8 +108,8 @@ private:
     bool forwardCommand(CS101_ASDU asdu, InformationObject command, IMasterConnection connection);
     void removeOutstandingCommands(IMasterConnection connection);
     void removeAllOutstandingCommands();
-    void handleActCon(int type, int ca, int ioa);
-    void handleActTerm(int type, int ca, int ioa);
+    void handleActCon(int type, int ca, int ioa, bool isNegative);
+    void handleActTerm(int type, int ca, int ioa, bool isNegative);
 
     static void printCP56Time2a(CP56Time2a time);
     static void rawMessageHandler(void* parameter, IMasterConnection connection,

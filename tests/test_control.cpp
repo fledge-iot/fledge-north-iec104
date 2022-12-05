@@ -564,7 +564,42 @@ TEST_F(ControlTest, CommandActCon)
 
     ASSERT_EQ(2, asduHandlerCalled);
     ASSERT_EQ(1, actConReceived);
+    ASSERT_FALSE(actConNegative);
     ASSERT_EQ(1, actTermReceived);
+}
+
+TEST_F(ControlTest, CommandActConNegative)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    iec104Server->ActConTimeout(1000);
+    iec104Server->ActTermTimeout(1000);
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    InformationObject sc = (InformationObject)SingleCommand_create(NULL, 10005, true, false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(200);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    // forward ACT-CON from south side
+    ForwardCommandAck("CM1", "C_SC_NA_1", 45, 10005, CS101_COT_ACTIVATION_CON, true);
+
+    Thread_sleep(200);
+
+    ASSERT_EQ(1, asduHandlerCalled);
+    ASSERT_EQ(1, actConReceived);
+    ASSERT_TRUE(actConNegative);
+    ASSERT_EQ(0, actTermReceived);
 }
 
 TEST_F(ControlTest, SinglePointCommandIOMissing)
