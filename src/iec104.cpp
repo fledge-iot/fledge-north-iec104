@@ -670,7 +670,7 @@ IEC104Server::removeAllOutstandingCommands()
 }
 
 void
-IEC104Server::handleActCon(int type, int ca, int ioa)
+IEC104Server::handleActCon(int type, int ca, int ioa, bool isNegative)
 {
     m_outstandingCommandsLock.lock();
 
@@ -681,7 +681,7 @@ IEC104Server::handleActCon(int type, int ca, int ioa)
         IEC104OutstandingCommand* outstandingCommand = *it;
 
         if (outstandingCommand->isMatching(type, ca, ioa)) {
-            outstandingCommand->sendActCon(false);
+            outstandingCommand->sendActCon(isNegative);
 
             if (outstandingCommand->isSelect()) {
                 m_outstandingCommands.erase(it);
@@ -699,7 +699,7 @@ IEC104Server::handleActCon(int type, int ca, int ioa)
 }
 
 void
-IEC104Server::handleActTerm(int type, int ca, int ioa)
+IEC104Server::handleActTerm(int type, int ca, int ioa, bool isNegative)
 {
     m_outstandingCommandsLock.lock();
 
@@ -711,7 +711,7 @@ IEC104Server::handleActTerm(int type, int ca, int ioa)
 
         if (outstandingCommand->isMatching(type, ca, ioa))
         {
-            outstandingCommand->sendActTerm();
+            outstandingCommand->sendActTerm(isNegative);
 
             m_log->info("Outstanding command %i:%i sent ACT-TERM -> remove", outstandingCommand->CA(), outstandingCommand->IOA());
 
@@ -1059,6 +1059,8 @@ IEC104Server::send(const vector<Reading*>& readings)
                 bool ts_su = false;
                 bool ts_sub = false;
 
+                bool isNegative = false;
+
                 DatapointValue* value = nullptr;
 
                 uint8_t qd = IEC60870_QUALITY_GOOD;
@@ -1082,6 +1084,10 @@ IEC104Server::send(const vector<Reading*>& readings)
                     }
                     else if (objDp->getName() == "do_value") {
                         value = new DatapointValue(attrVal);
+                    }
+                    else if (objDp->getName() == "do_negative") {
+                        if (attrVal.toInt() != 0)
+                            isNegative = true;
                     }
                     else if (objDp->getName() == "do_quality_iv") {
                         if (attrVal.toInt() != 0)
@@ -1123,11 +1129,11 @@ IEC104Server::send(const vector<Reading*>& readings)
 
                 if (cot == CS101_COT_ACTIVATION_CON)
                 {
-                    handleActCon(type, ca, ioa);
+                    handleActCon(type, ca, ioa, isNegative);
                 }
                 else if (cot == CS101_COT_ACTIVATION_TERMINATION)
                 {
-                    handleActTerm(type, ca, ioa);
+                    handleActTerm(type, ca, ioa, isNegative);
                 }
                 else if (ca != -1 && ioa != -1 && cot != CS101_COT_UNKNOWN_COT && type != -1) {
 
