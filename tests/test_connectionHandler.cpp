@@ -144,7 +144,17 @@ static string protocol_stack_2 = QUOTE({
                        "orig_addr":2
                     }
                 ]
-            }
+            },
+            "south_monitoring": [
+                {
+                    "connx_status": "CONSTAT-1",
+                    "gi_status": "GISTAT-1"
+                },
+                {
+                    "connx_status": "CONSTAT-2",
+                    "gi_status": "GISTAT-2"
+                }
+            ]
         }
     });
 
@@ -275,6 +285,8 @@ TEST_F(ConnectionHandlerTest, NormalConnection)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     // Create connection
     connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
 
@@ -302,6 +314,8 @@ TEST_F(ConnectionHandlerTest, TLSConnection)
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     bool result = CS104_Connection_connect(connection);
     ASSERT_TRUE(result);
 
@@ -327,6 +341,8 @@ TEST_F(ConnectionHandlerTest, TLSConnectionNoCaCertificate)
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_2);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     bool result = CS104_Connection_connect(connection);
     ASSERT_TRUE(result);
 
@@ -351,6 +367,8 @@ TEST_F(ConnectionHandlerTest, TLSConnectionNoRemoteOrCaCertificate)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_4);
+
+    Thread_sleep(500); /* wait for the server to start */
 
     bool result = CS104_Connection_connect(connection);
     ASSERT_FALSE(result);

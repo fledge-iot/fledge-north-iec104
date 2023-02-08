@@ -299,6 +299,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_SP_NA_1)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
     bool result = CS104_Connection_connect(connection);
@@ -361,6 +363,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_SP_TB_1_On)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
     bool result = CS104_Connection_connect(connection);
@@ -418,6 +422,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_SP_TB_1_Off)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
     bool result = CS104_Connection_connect(connection);
@@ -474,6 +480,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_SP_TB_1_Off)
 TEST_F(SendSpontDataTest, CreateReading_M_DP_NA_1)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    Thread_sleep(500); /* wait for the server to start */
 
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
@@ -571,6 +579,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_DP_TB_1)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
     bool result = CS104_Connection_connect(connection);
@@ -642,6 +652,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NA_1)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
     bool result = CS104_Connection_connect(connection);
@@ -702,6 +714,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NB_1)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
     bool result = CS104_Connection_connect(connection);
@@ -747,6 +761,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NC_1)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
     bool result = CS104_Connection_connect(connection);
@@ -791,6 +807,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_NC_1)
 TEST_F(SendSpontDataTest, CreateReading_M_ME_TD_1)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    Thread_sleep(500); /* wait for the server to start */
 
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
@@ -849,6 +867,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_TE_1)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
     bool result = CS104_Connection_connect(connection);
@@ -905,6 +925,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_TE_1)
 TEST_F(SendSpontDataTest, CreateReading_M_ME_TF_1)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    Thread_sleep(500); /* wait for the server to start */
 
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
@@ -981,6 +1003,8 @@ TEST_F(SendSpontDataTest, CreateReading_M_ME_TF_1)
 TEST_F(SendSpontDataTest, CreateReading_differentSpontaneousCOTs)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    Thread_sleep(500); /* wait for the server to start */
 
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 

@@ -263,6 +263,8 @@ TEST_F(InterrogationHandlerTest, InterrogationHandlerSingleCA)
 
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
     bool result = CS104_Connection_connect(connection);
@@ -334,6 +336,8 @@ TEST_F(InterrogationHandlerTest, InterrogationHandlerBroadcastCA)
     receivedASDUs = LinkedList_create();
 
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    Thread_sleep(500); /* wait for the server to start */
 
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 
@@ -426,6 +430,8 @@ TEST_F(InterrogationHandlerTest, InterrogationForUnknownCA)
     receivedASDUs = LinkedList_create();
 
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    Thread_sleep(500); /* wait for the server to start */
 
     CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
 

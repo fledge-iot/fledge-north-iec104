@@ -263,9 +263,7 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
         m_started = true;
         m_monitoringThread = new std::thread(&IEC104Server::_monitoringThread, this);
 
-        CS104_Slave_start(m_slave);
-
-        m_log->info("CS104 server started");
+        m_log->info("CS104 server initialized");
     }
     else {
         m_log->error("Failed to create CS104 server instance");
@@ -321,8 +319,38 @@ IEC104Server::registerControl(int (* operation)(char *operation, int paramCount,
 void
 IEC104Server::_monitoringThread()
 {
+    //TODO request south connection status
+    //requestSouthConnectionStatus();
+
+    bool serverRunning = false;
+
     while (m_started)
     {
+        if (m_config->GetMode() == IEC104Config::Mode::CONNECT_ALWAYS) {
+            if (serverRunning == false) {
+                CS104_Slave_start(m_slave);
+                printf("Server started - mode: CONNECT_ALWAYS\n");
+                serverRunning = true;
+            }
+        }
+        else if (m_config->GetMode() == IEC104Config::Mode::CONNECT_IF_SOUTH_CONNX_STARTED) {
+            if (serverRunning == false) {
+                
+                if (checkIfSouthConnected()) {
+                    printf("Server started - mode: CONNECT_IF_SOUTH_CONNX_STARTED\n");
+                    CS104_Slave_start(m_slave);
+                    serverRunning = true;
+                }
+            }
+            else {
+                if (checkIfSouthConnected() == false) {
+                    printf("Server stopped - mode: CONNECT_IF_SOUTH_CONNX_STARTED\n");
+                    CS104_Slave_stop(m_slave);
+                    serverRunning = false;
+                }
+            }
+        }
+        
         /* check timeouts for outstanding commands */
         m_outstandingCommandsLock.lock();
 
@@ -349,6 +377,11 @@ IEC104Server::_monitoringThread()
         m_outstandingCommandsLock.unlock();
 
         Thread_sleep(100);
+    }
+
+    if (serverRunning) {
+        CS104_Slave_stop(m_slave);
+        serverRunning = false;
     }
 }
 
@@ -584,6 +617,22 @@ createLongDatapoint(const std::string& dataname,
 {
     DatapointValue dp_value = DatapointValue(value);
     return new Datapoint(dataname, dp_value);
+}
+
+bool
+IEC104Server::checkIfSouthConnected()
+{
+    bool connected = false;
+
+    for (auto southPlugin : m_config->GetMonitoredSouthPlugins())
+    {
+        if (southPlugin->GetConnxStatus() == IEC104Config::ConnectionStatus::STARTED) {
+            connected = true;
+            break;
+        }
+    }
+
+    return connected;
 }
 
 bool
@@ -1017,6 +1066,56 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
     }
 }
 
+static void
+updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPluginMonitor* southPluginMonitor)
+{
+    DatapointValue dpv = dp->getData();
+
+    vector<Datapoint*>* sdp = dpv.getDpVec();
+
+    for (Datapoint* objDp : *sdp)
+    {
+        DatapointValue attrVal = objDp->getData();
+
+        if (objDp->getName() == "connx_status") {
+            std::string connxStatusValue = attrVal.toStringValue();
+
+            IEC104Config::ConnectionStatus connxStatus = IEC104Config::ConnectionStatus::NOT_CONNECTED;
+
+            if (connxStatusValue == "not connected") {
+                connxStatus = IEC104Config::ConnectionStatus::NOT_CONNECTED;
+            }
+            else if (connxStatusValue == "started") {
+                connxStatus = IEC104Config::ConnectionStatus::STARTED;
+            }
+
+            printf("south connection status for %s changed to %s\n", southPluginMonitor->GetAssetName().c_str(), connxStatusValue.c_str());
+
+            southPluginMonitor->SetConnxStatus(connxStatus);
+        }
+        else if (objDp->getName() == "gi_status") {
+            std::string giStatusValue = attrVal.toStringValue();
+
+            IEC104Config::GiStatus giStatus = IEC104Config::GiStatus::IDLE;
+
+            if (giStatusValue ==  "started") {
+                giStatus = IEC104Config::GiStatus::STARTED;
+            }
+            else if (giStatusValue == "in progress") {
+                giStatus = IEC104Config::GiStatus::IN_PROGRESS;
+            }
+            else if (giStatusValue == "failed") {
+                giStatus = IEC104Config::GiStatus::FAILED;
+            }
+            else if (giStatusValue == "finished") {
+                giStatus = IEC104Config::GiStatus::FINISHED;
+            }
+        
+            southPluginMonitor->SetGiStatus(giStatus);
+        }
+    }
+}
+
 /**
  * Send a block of reading to IEC104 Server
  *
@@ -1042,7 +1141,19 @@ IEC104Server::send(const vector<Reading*>& readings)
 
         for (Datapoint* dp : dataPoints) {
 
-            if (dp->getName() == "data_object")
+            if (dp->getName() == "iec104_south_event") {
+                
+                // check if we know the south plugin
+                for (auto southPluginMonitor : m_config->GetMonitoredSouthPlugins()) {
+                    if (assetName == southPluginMonitor->GetAssetName()) {
+
+                        updateSouthMonitoringInstance(dp, southPluginMonitor);
+
+                        break;
+                    }
+                }
+            }
+            else if (dp->getName() == "data_object")
             {  
                 int ca = -1;
                 int ioa = -1;
@@ -1748,19 +1859,6 @@ IEC104Server::connectionEventHandler(void* parameter,
 void
 IEC104Server::stop()
 {
-    if (m_slave)
-    {
-        CS104_Slave_stop(m_slave);
-        CS104_Slave_destroy(m_slave);
-        m_slave = nullptr;
-    }
-
-    if (m_tlsConfig)
-    {
-        TLSConfiguration_destroy(m_tlsConfig);
-        m_tlsConfig = nullptr;
-    }
-
     if (m_started == true)
     {
         m_started = false;
@@ -1770,5 +1868,17 @@ IEC104Server::stop()
             delete m_monitoringThread;
             m_monitoringThread = nullptr;
         }
+    }
+
+    if (m_slave)
+    {
+        CS104_Slave_destroy(m_slave);
+        m_slave = nullptr;
+    }
+
+    if (m_tlsConfig)
+    {
+        TLSConfiguration_destroy(m_tlsConfig);
+        m_tlsConfig = nullptr;
     }
 }

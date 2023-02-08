@@ -102,6 +102,8 @@ private:
     void m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmission cot, IEC60870_5_TypeID typeId);
     void m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, DatapointValue* value, CP56Time2a ts, uint8_t quality);
 
+    bool checkIfSouthConnected();
+
     bool checkTimestamp(CP56Time2a timestamp);
     bool checkIfCmdTimeIsValid(int typeId, InformationObject io);
     void addToOutstandingCommands(CS101_ASDU asdu, IMasterConnection connection, bool isSelect);
@@ -128,6 +130,7 @@ private:
                                          const char* ipAddress);
     static void connectionEventHandler(void* parameter, IMasterConnection con,
                                        CS104_PeerConnectionEvent event);
+
     CS104_Slave m_slave{};
     TLSConfiguration m_tlsConfig = nullptr;
     CS101_AppLayerParameters alParams;
