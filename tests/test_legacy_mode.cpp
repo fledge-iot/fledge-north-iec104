@@ -253,6 +253,8 @@ protected:
     bool actConNegative = false;
     int actTermReceived = 0;
 
+    void SendSouthEvent(std::string asset, bool withConnx, std::string connxValue, bool withGiStatus, std::string giStatusValue);
+
     static bool m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu);
 };
 
@@ -344,6 +346,45 @@ createCommandAck(const char* type, int ca, int ioa, int cot, bool negative)
     return dp;
 }
 
+static Datapoint*
+createSouthEvent(bool withConnx, std::string connxValue, bool withGiStatus, std::string giStatusValue)
+{
+    auto* datapoints = new vector<Datapoint*>;
+
+    if (withConnx) {
+        datapoints->push_back(createDatapoint("connx_status", connxValue));
+    }
+
+    if (withGiStatus) {
+        datapoints->push_back(createDatapoint("gi_status", giStatusValue));
+    }
+
+    DatapointValue dpv(datapoints, true);
+
+    Datapoint* dp = new Datapoint("iec104_south_event", dpv);
+
+    return dp;
+}
+
+void
+LegacyModeTest::SendSouthEvent(std::string asset, bool withConnx, std::string connxValue, bool withGiStatus, std::string giStatusValue)
+{
+    Datapoint* southEvent = createSouthEvent(true, connxValue, false, giStatusValue);
+
+    auto* southEvents = new vector<Datapoint*>;
+
+    southEvents->push_back(southEvent);
+
+    //TODO send south event connx_started
+    Reading* reading = new Reading(asset, *southEvents);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+}
+
 void 
 LegacyModeTest::ForwardCommandAck(const char* cmdName, const char* type, int ca, int ioa, int cot, bool negative)
 {
@@ -373,11 +414,17 @@ TEST_F(LegacyModeTest, ConnectWhileSouthNotStarted)
 
     ASSERT_FALSE(CS104_Connection_connect(connection));
 
-    //TODO send south event connx_started
+    SendSouthEvent("CONSTAT-1", true, "started", false, "");
 
     Thread_sleep(500); /* wait for the server to start */
 
-    //ASSERT_TRUECS104_Connection_connect(connection));
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    SendSouthEvent("CONSTAT-1", true, "not connected", true, "failed");
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_FALSE(CS104_Connection_connect(connection));
 
     Thread_sleep(500);
 }

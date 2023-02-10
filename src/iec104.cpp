@@ -1125,13 +1125,9 @@ updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPluginMonitor* s
 uint32_t
 IEC104Server::send(const vector<Reading*>& readings)
 {
-    if (CS104_Slave_isRunning(m_slave) == false)
-    {
-        //m_log->error("Failed to send data: server not running");
-        return 0;
-    }
-
     int n = 0;
+
+    int readingsSent = 0;
 
     for (auto reading = readings.cbegin(); reading != readings.cend();
          reading++)
@@ -1149,12 +1145,22 @@ IEC104Server::send(const vector<Reading*>& readings)
 
                         updateSouthMonitoringInstance(dp, southPluginMonitor);
 
+                        readingsSent++;
+
                         break;
                     }
                 }
             }
             else if (dp->getName() == "data_object")
-            {  
+            {
+                if (CS104_Slave_isRunning(m_slave) == false) {
+                    m_log->warn("Failed to send data: server not running");
+                    printf("Failed to send data: server not running\n");
+                    continue;
+                }
+
+                readingsSent++;
+
                 int ca = -1;
                 int ioa = -1;
                 CS101_CauseOfTransmission cot = CS101_COT_UNKNOWN_COT;
@@ -1291,7 +1297,7 @@ IEC104Server::send(const vector<Reading*>& readings)
         n++;
     }
 
-    return n;
+    return readingsSent;
 }
 
 /**
