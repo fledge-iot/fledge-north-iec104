@@ -191,8 +191,6 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
 
     if (m_slave)
     {
-        m_oper = NULL;
-
         CS104_Slave_setLocalPort(m_slave, m_config->TcpPort());
 
         m_log->info("TCP/IP parameters:");
@@ -317,10 +315,23 @@ IEC104Server::registerControl(int (* operation)(char *operation, int paramCount,
 }
 
 void
+IEC104Server::requestSouthConnectionStatus()
+{
+    if (m_oper) {
+        if (m_config->CmdDest() == "")
+            m_oper((char*)"request_connection_status", 0, nullptr, nullptr, DestinationBroadcast, nullptr);
+        else
+            m_oper((char*)"request_connection_status", 0, nullptr, nullptr, DestinationService, m_config->CmdDest().c_str());
+    }
+    else {
+        printf("WARNING: m_oper not set -> call registerControl\n");
+    }   
+}
+
+void
 IEC104Server::_monitoringThread()
 {
-    //TODO request south connection status
-    //requestSouthConnectionStatus();
+    requestSouthConnectionStatus();
 
     bool serverRunning = false;
 

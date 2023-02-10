@@ -234,6 +234,7 @@ protected:
     }
 
     static int operateHandlerCalled;
+    static std::string calledOperation;
 
     static int operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...);
 
@@ -282,11 +283,14 @@ LegacyModeTest::m_asduReceivedHandler(void* parameter, int address, CS101_ASDU a
 }
 
 int LegacyModeTest::operateHandlerCalled;
+std::string LegacyModeTest::calledOperation = "";
 
 int LegacyModeTest::operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...)
 {
     printf("operateHandler called\n");
     operateHandlerCalled++;
+
+    calledOperation.assign(operation);
 
     return 1;
 }
@@ -406,11 +410,15 @@ LegacyModeTest::ForwardCommandAck(const char* cmdName, const char* type, int ca,
 
 TEST_F(LegacyModeTest, ConnectWhileSouthNotStarted)
 {
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
     iec104Server->registerControl(operateHandler);
 
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
     Thread_sleep(500); /* wait for the server to start */
+
+    // expect operate handler called with "request_connection_status"
+    ASSERT_EQ(1, operateHandlerCalled);
+    ASSERT_EQ("request_connection_status", calledOperation);
 
     ASSERT_FALSE(CS104_Connection_connect(connection));
 

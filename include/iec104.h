@@ -112,6 +112,7 @@ private:
     void removeAllOutstandingCommands();
     void handleActCon(int type, int ca, int ioa, bool isNegative);
     void handleActTerm(int type, int ca, int ioa, bool isNegative);
+    void requestSouthConnectionStatus();
 
     static void printCP56Time2a(CP56Time2a time);
     static void rawMessageHandler(void* parameter, IMasterConnection connection,
@@ -141,7 +142,7 @@ private:
     int m_actConTimeout = 1000;
     int m_actTermTimeout = 1000;
 
-    int (*m_oper)(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...);
+    int (*m_oper)(char *operation, int paramCount, char* names[], char* parameters[], ControlDestination destination, ...) = NULL;
 
     bool m_started = false;
     std::thread* m_monitoringThread = nullptr;
