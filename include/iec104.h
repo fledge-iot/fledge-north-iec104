@@ -112,7 +112,8 @@ private:
     void removeAllOutstandingCommands();
     void handleActCon(int type, int ca, int ioa, bool isNegative);
     void handleActTerm(int type, int ca, int ioa, bool isNegative);
-    void requestSouthConnectionStatus();
+    bool requestSouthConnectionStatus();
+    void updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPluginMonitor* southPluginMonitor);
 
     static void printCP56Time2a(CP56Time2a time);
     static void rawMessageHandler(void* parameter, IMasterConnection connection,

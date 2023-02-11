@@ -275,7 +275,7 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
 void
 IEC104Server::configure(const ConfigCategory* config)
 {
-    m_log->debug("configure called");
+    m_log->info("configure called");
 
     if (config->itemExists("name"))
         m_name = config->getValue("name");
@@ -312,35 +312,55 @@ void
 IEC104Server::registerControl(int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...))
 {
     m_oper = operation;
+    
+    m_log->warn("RegisterControl is called");
 }
 
-void
+bool
 IEC104Server::requestSouthConnectionStatus()
 {
     if (m_oper) {
+        m_log->warn("Send request_connection_status operation");
+
+        char* parameters[1];
+        char* names[1];
+
+        names[0] = (char*)"desc";
+
+        parameters[0] = (char*)"request connection status";
+
         if (m_config->CmdDest() == "")
-            m_oper((char*)"request_connection_status", 0, nullptr, nullptr, DestinationBroadcast, nullptr);
+            m_oper((char*)"request_connection_status", 1, names, parameters, DestinationBroadcast, nullptr);
         else
-            m_oper((char*)"request_connection_status", 0, nullptr, nullptr, DestinationService, m_config->CmdDest().c_str());
+            m_oper((char*)"request_connection_status", 1, names, parameters, DestinationService, m_config->CmdDest().c_str());
+
+        return true;
     }
     else {
+        m_log->warn("m_oper not set -> call registerControl");
         printf("WARNING: m_oper not set -> call registerControl\n");
+        return false;
     }   
 }
 
 void
 IEC104Server::_monitoringThread()
 {
-    requestSouthConnectionStatus();
+    bool southStatusRequested = false;
 
     bool serverRunning = false;
 
     while (m_started)
     {
+        if (southStatusRequested == false) {
+            southStatusRequested = requestSouthConnectionStatus();
+        }
+
         if (m_config->GetMode() == IEC104Config::Mode::CONNECT_ALWAYS) {
             if (serverRunning == false) {
                 CS104_Slave_start(m_slave);
                 printf("Server started - mode: CONNECT_ALWAYS\n");
+                m_log->warn("Server started - mode: CONNECT_ALWAYS");
                 serverRunning = true;
             }
         }
@@ -349,6 +369,7 @@ IEC104Server::_monitoringThread()
                 
                 if (checkIfSouthConnected()) {
                     printf("Server started - mode: CONNECT_IF_SOUTH_CONNX_STARTED\n");
+                    m_log->warn("Server started - mode: CONNECT_IF_SOUTH_CONNX_STARTED");
                     CS104_Slave_start(m_slave);
                     serverRunning = true;
                 }
@@ -356,6 +377,7 @@ IEC104Server::_monitoringThread()
             else {
                 if (checkIfSouthConnected() == false) {
                     printf("Server stopped - mode: CONNECT_IF_SOUTH_CONNX_STARTED\n");
+                    m_log->warn("Server stopped - mode: CONNECT_IF_SOUTH_CONNX_STARTED");
                     CS104_Slave_stop(m_slave);
                     serverRunning = false;
                 }
@@ -1077,8 +1099,8 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
     }
 }
 
-static void
-updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPluginMonitor* southPluginMonitor)
+void
+IEC104Server::updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPluginMonitor* southPluginMonitor)
 {
     DatapointValue dpv = dp->getData();
 
@@ -1102,6 +1124,9 @@ updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPluginMonitor* s
 
             printf("south connection status for %s changed to %s\n", southPluginMonitor->GetAssetName().c_str(), connxStatusValue.c_str());
 
+            m_log->warn("south connection status for %s changed to %s", southPluginMonitor->GetAssetName().c_str(), connxStatusValue.c_str());
+
+
             southPluginMonitor->SetConnxStatus(connxStatus);
         }
         else if (objDp->getName() == "gi_status") {
@@ -1121,6 +1146,8 @@ updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPluginMonitor* s
             else if (giStatusValue == "finished") {
                 giStatus = IEC104Config::GiStatus::FINISHED;
             }
+
+            m_log->warn("south gi status for %s changed to %s", southPluginMonitor->GetAssetName().c_str(), giStatusValue.c_str());
         
             southPluginMonitor->SetGiStatus(giStatus);
         }
@@ -1140,19 +1167,22 @@ IEC104Server::send(const vector<Reading*>& readings)
 
     int readingsSent = 0;
 
-    for (auto reading = readings.cbegin(); reading != readings.cend();
-         reading++)
+    for (auto reading = readings.cbegin(); reading != readings.cend(); reading++)
     {
         vector<Datapoint*>& dataPoints = (*reading)->getReadingData();
-        string assetName = (*reading)->getAssetName();
+        string assetName = (*reading)->getAssetName();  
 
         for (Datapoint* dp : dataPoints) {
 
             if (dp->getName() == "iec104_south_event") {
+
+                m_log->warn("Receive iec104_south_event");
                 
                 // check if we know the south plugin
                 for (auto southPluginMonitor : m_config->GetMonitoredSouthPlugins()) {
                     if (assetName == southPluginMonitor->GetAssetName()) {
+
+                        m_log->warn("Found matching monitored plugin for iec104_south_event");
 
                         updateSouthMonitoringInstance(dp, southPluginMonitor);
 
@@ -1164,13 +1194,12 @@ IEC104Server::send(const vector<Reading*>& readings)
             }
             else if (dp->getName() == "data_object")
             {
+                readingsSent++;
+
                 if (CS104_Slave_isRunning(m_slave) == false) {
-                    m_log->warn("Failed to send data: server not running");
-                    printf("Failed to send data: server not running\n");
+                    //m_log->warn("Failed to send data: server not running");
                     continue;
                 }
-
-                readingsSent++;
 
                 int ca = -1;
                 int ioa = -1;
@@ -1301,14 +1330,15 @@ IEC104Server::send(const vector<Reading*>& readings)
                 if (value != nullptr) delete value;
             }
             else {
-                m_log->error("   --> Unknown data point name");
+               // m_log->error("   --> Unknown data point name: %s", dp->getName().c_str());
+               readingsSent++;
             }
         }
 
         n++;
     }
 
-    return readingsSent;
+    return n;
 }
 
 /**
