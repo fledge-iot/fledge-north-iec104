@@ -218,6 +218,7 @@ protected:
     void SetUp() override
     {
         operateHandlerCalled = 0;
+        requestSouthStatusCalled = 0;
         asduHandlerCalled = 0;
         actConReceived = 0;
         actConNegative = false;
@@ -234,6 +235,7 @@ protected:
     }
 
     static int operateHandlerCalled;
+    static int requestSouthStatusCalled;
 
     static int operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...);
 
@@ -280,11 +282,16 @@ ControlTest::m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu
 }
 
 int ControlTest::operateHandlerCalled;
+int ControlTest::requestSouthStatusCalled;
 
 int ControlTest::operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...)
 {
-    printf("operateHandler called\n");
-    operateHandlerCalled++;
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
 
     return 1;
 }
