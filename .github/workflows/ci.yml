@@ -2,7 +2,7 @@ name: CI
 on:
   push:
     branches:
-      - refactoring
+      - main
   pull_request:
     types: [opened, synchronize, reopened]
     
@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     env:
       SONAR_SCANNER_VERSION: 4.6.1.2450 # Find the latest version in the "Windows" link on this page:
                                         # https://docs.sonarqube.org/latest/analysis/scan/sonarscanner/
@@ -70,14 +70,14 @@ jobs:
       - name: Download and install lib60870
         env:
           LIB60870_REPO_URL: "https://github.com/mz-automation/lib60870.git" 
-          MBEDTLS_REPO_URL: "https://github.com/ARMmbed/mbedtls/archive/refs/tags/v2.16.12.tar.gz"
+          MBEDTLS_REPO_URL: "https://github.com/ARMmbed/mbedtls/archive/refs/tags/v2.28.1.tar.gz"
         run: |
           cd $HOME
           git clone ${{ env.LIB60870_REPO_URL }}
           cd $HOME/lib60870/lib60870-C
           cd dependencies
           wget  ${{ env.MBEDTLS_REPO_URL }}
-          tar xf v2.16.12.tar.gz
+          tar xf v2.28.1.tar.gz
           cd ..
           mkdir build
           cd build
@@ -115,4 +115,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          sonar-scanner --define sonar.host.url="${{ env.SONAR_SERVER_URL }}" --define sonar.cfamily.build-wrapper-output="${{ env.BUILD_WRAPPER_OUT_DIR }}" --define sonar.organization="fledge-power" --define sonar.projectKey="fledge-power_fledge-north-iec104" --define sonar.inclusions="**/plugin.cpp,**/iec104.cpp,**/include/iec104.h" --define sonar.coverageReportPaths="build/iec104_coverage_sonar-sonarqube.xml"
+          sonar-scanner --define sonar.host.url="${{ env.SONAR_SERVER_URL }}" --define sonar.cfamily.build-wrapper-output="${{ env.BUILD_WRAPPER_OUT_DIR }}" --define sonar.organization="fledge-power" --define sonar.projectKey="fledge-power_fledge-north-iec104" --define sonar.inclusions="src/*,include/*" --define sonar.coverageReportPaths="build/iec104_coverage_sonar-sonarqube.xml"
