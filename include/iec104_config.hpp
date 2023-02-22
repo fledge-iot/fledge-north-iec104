@@ -61,11 +61,58 @@ public:
     std::vector<std::string>& GetRemoteCertificates() {return m_remoteCertificates;};
     std::vector<std::string>& GetCaCertificates() {return m_caCertificates;};
 
+    enum class Mode
+    {
+        CONNECT_ALWAYS,
+        CONNECT_IF_SOUTH_CONNX_STARTED
+    };
+
+    Mode GetMode() {return m_mode;};
+
+    enum class ConnectionStatus
+    {
+        STARTED,
+        NOT_CONNECTED
+    };
+
+    enum class GiStatus
+    {
+        IDLE,
+        STARTED,
+        IN_PROGRESS,
+        FAILED,
+        FINISHED
+    };
+
+    class SouthPluginMonitor {
+        
+    public:
+        SouthPluginMonitor(std::string& assetName);
+
+        std::string& GetAssetName() {return m_assetName;};
+
+        ConnectionStatus GetConnxStatus() {return m_connxStatus;};
+        GiStatus GetGiStatus() {return m_giStatus;};
+
+        void SetConnxStatus(ConnectionStatus status) {m_connxStatus = status;};
+        void SetGiStatus(GiStatus status) {m_giStatus = status;};
+
+    private:
+
+        std::string m_assetName;
+        ConnectionStatus m_connxStatus;
+        GiStatus m_giStatus;
+    };
+
+    std::vector<SouthPluginMonitor*> GetMonitoredSouthPlugins() {return m_monitoredSouthPlugins;};
+
 private:
 
     static bool isValidIPAddress(const string& addrStr);
 
     void deleteExchangeDefinitions();
+
+    Mode m_mode = Mode::CONNECT_ALWAYS;
     
     bool m_protocolConfigComplete;
     bool m_exchangeConfigComplete;
@@ -99,6 +146,8 @@ private:
     string m_cmdDest = "";
 
     std::vector<CS104_RedundancyGroup> m_configuredRedundancyGroups;
+
+    std::vector<SouthPluginMonitor*> m_monitoredSouthPlugins;
 
     std::map<int, std::map<int, IEC104DataPoint*>>* m_exchangeDefinitions = nullptr;
     std::map<int, int> m_allowedOriginators;

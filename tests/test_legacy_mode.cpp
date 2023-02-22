@@ -54,7 +54,7 @@ static string protocol_stack = QUOTE({
                 "t1_timeout":15,
                 "t2_timeout":10,
                 "t3_timeout":20,
-                "mode": "accept_always"
+                "mode": "accept_if_south_connx_started"
             },
             "application_layer" : {
                 "ca_asdu_size":2,
@@ -208,7 +208,7 @@ static string exchanged_data_2 = QUOTE({
     });
 
 // Class to be called in each test, contains fixture to be used in
-class ControlTest : public testing::Test
+class LegacyModeTest : public testing::Test
 {
 protected:
     IEC104Server* iec104Server;  // Object on which we call for tests
@@ -218,7 +218,6 @@ protected:
     void SetUp() override
     {
         operateHandlerCalled = 0;
-        requestSouthStatusCalled = 0;
         asduHandlerCalled = 0;
         actConReceived = 0;
         actConNegative = false;
@@ -235,7 +234,7 @@ protected:
     }
 
     static int operateHandlerCalled;
-    static int requestSouthStatusCalled;
+    static std::string calledOperation;
 
     static int operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...);
 
@@ -255,13 +254,15 @@ protected:
     bool actConNegative = false;
     int actTermReceived = 0;
 
+    void SendSouthEvent(std::string asset, bool withConnx, std::string connxValue, bool withGiStatus, std::string giStatusValue);
+
     static bool m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu);
 };
 
 bool
-ControlTest::m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu)
+LegacyModeTest::m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu)
 {
-    ControlTest* self = (ControlTest*)parameter;
+    LegacyModeTest* self = (LegacyModeTest*)parameter;
 
     self->asduHandlerCalled++;
 
@@ -281,17 +282,15 @@ ControlTest::m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu
     return true;
 }
 
-int ControlTest::operateHandlerCalled;
-int ControlTest::requestSouthStatusCalled;
+int LegacyModeTest::operateHandlerCalled;
+std::string LegacyModeTest::calledOperation = "";
 
-int ControlTest::operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...)
+int LegacyModeTest::operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...)
 {
-    if (!strcmp(operation, "request_connection_status")) {
-        requestSouthStatusCalled++;
-    }
-    else {
-        operateHandlerCalled++;
-    }
+    printf("operateHandler called\n");
+    operateHandlerCalled++;
+
+    calledOperation.assign(operation);
 
     return 1;
 }
@@ -351,8 +350,47 @@ createCommandAck(const char* type, int ca, int ioa, int cot, bool negative)
     return dp;
 }
 
+static Datapoint*
+createSouthEvent(bool withConnx, std::string connxValue, bool withGiStatus, std::string giStatusValue)
+{
+    auto* datapoints = new vector<Datapoint*>;
+
+    if (withConnx) {
+        datapoints->push_back(createDatapoint("connx_status", connxValue));
+    }
+
+    if (withGiStatus) {
+        datapoints->push_back(createDatapoint("gi_status", giStatusValue));
+    }
+
+    DatapointValue dpv(datapoints, true);
+
+    Datapoint* dp = new Datapoint("iec104_south_event", dpv);
+
+    return dp;
+}
+
+void
+LegacyModeTest::SendSouthEvent(std::string asset, bool withConnx, std::string connxValue, bool withGiStatus, std::string giStatusValue)
+{
+    Datapoint* southEvent = createSouthEvent(true, connxValue, false, giStatusValue);
+
+    auto* southEvents = new vector<Datapoint*>;
+
+    southEvents->push_back(southEvent);
+
+    //TODO send south event connx_started
+    Reading* reading = new Reading(asset, *southEvents);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+}
+
 void 
-ControlTest::ForwardCommandAck(const char* cmdName, const char* type, int ca, int ioa, int cot, bool negative)
+LegacyModeTest::ForwardCommandAck(const char* cmdName, const char* type, int ca, int ioa, int cot, bool negative)
 {
     auto* dataobjects = new vector<Datapoint*>;
 
@@ -370,329 +408,31 @@ ControlTest::ForwardCommandAck(const char* cmdName, const char* type, int ca, in
     delete dataobjects;
 }
 
-TEST_F(ControlTest, CreateReading)
+TEST_F(LegacyModeTest, ConnectWhileSouthNotStarted)
 {
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
-    auto* dataobjects = new vector<Datapoint*>;
-
-    dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 945, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false));
-    //dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 946, CS101_COT_SPONTANEOUS, (int64_t)0, false, false, false, false, false));
-    //dataobjects->push_back(createDataObject("M_SP_NA_1", 45, 947, CS101_COT_SPONTANEOUS, (int64_t)0, false, false, false, false, false));
-
-    Reading* reading = new Reading(std::string("TS1"), *dataobjects);
-
-    vector<Reading*> readings;
-
-    readings.push_back(reading);
-
-    iec104Server->send(readings);
-
-    delete reading;
-    delete dataobjects;
-}
-
-TEST_F(ControlTest, ReceiveSinglePointCommand)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
     iec104Server->registerControl(operateHandler);
+
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    // expect operate handler called with "request_connection_status"
+    ASSERT_EQ(1, operateHandlerCalled);
+    ASSERT_EQ("request_connection_status", calledOperation);
+
+    ASSERT_FALSE(CS104_Connection_connect(connection));
+
+    SendSouthEvent("CONSTAT-1", true, "started", false, "");
 
     Thread_sleep(500); /* wait for the server to start */
 
     ASSERT_TRUE(CS104_Connection_connect(connection));
 
-    CS104_Connection_sendStartDT(connection);
+    SendSouthEvent("CONSTAT-1", true, "not connected", true, "failed");
 
-    InformationObject sc = (InformationObject)SingleCommand_create(NULL, 10005, true, false, 0);
+    Thread_sleep(500); /* wait for the server to start */
 
-    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
-
-    InformationObject_destroy(sc);
+    ASSERT_FALSE(CS104_Connection_connect(connection));
 
     Thread_sleep(500);
-
-    ASSERT_EQ(1, operateHandlerCalled);
-}
-
-TEST_F(ControlTest, ReceiveSetpointCommandShortWithTimestamp)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data_2, tls);
-
-    iec104Server->registerControl(operateHandler);
-
-    iec104Server->ActConTimeout(200);
-    iec104Server->ActTermTimeout(200);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    ASSERT_TRUE(CS104_Connection_connect(connection));
-
-    CS104_Connection_sendStartDT(connection);
-
-    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
-
-    InformationObject sc = (InformationObject)SetpointCommandShortWithCP56Time2a_create(NULL, 10010, 1.5f, false, 0, timestamp);
-
-    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
-
-    InformationObject_destroy(sc);
-
-    free(timestamp);
-
-    Thread_sleep(1500);
-
-    ASSERT_EQ(1, operateHandlerCalled);
-}
-
-TEST_F(ControlTest, ReceiveSetpointCommandShortWithInvalidTimestamp)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data_2, tls);
-
-    iec104Server->registerControl(operateHandler);
-
-    iec104Server->ActConTimeout(200);
-    iec104Server->ActTermTimeout(200);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    ASSERT_TRUE(CS104_Connection_connect(connection));
-
-    CS104_Connection_sendStartDT(connection);
-
-    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, 0);
-
-    InformationObject sc = (InformationObject)SetpointCommandShortWithCP56Time2a_create(NULL, 10010, 1.5f, false, 0, timestamp);
-
-    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
-
-    InformationObject_destroy(sc);
-
-    free(timestamp);
-
-    Thread_sleep(1500);
-
-    /* expect the command to be ignored */
-    ASSERT_EQ(0, operateHandlerCalled);
-
-    /* expect negative ACT-CON */
-    ASSERT_EQ(1, asduHandlerCalled);
-    ASSERT_EQ(1, actConReceived);
-    ASSERT_TRUE(actConNegative);
-}
-
-TEST_F(ControlTest, SinglePointCommandUnknownCA)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
-    iec104Server->registerControl(operateHandler);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    ASSERT_TRUE(CS104_Connection_connect(connection));
-
-    CS104_Connection_sendStartDT(connection);
-
-    InformationObject sc = (InformationObject)SingleCommand_create(NULL, 10005, true, false, 0);
-
-    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 21, sc);
-
-    InformationObject_destroy(sc);
-
-    Thread_sleep(500);
-
-    ASSERT_EQ(0, operateHandlerCalled);
-}
-
-TEST_F(ControlTest, ReceiveUnexpectedDoublePointCommand)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
-    iec104Server->registerControl(operateHandler);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    ASSERT_TRUE(CS104_Connection_connect(connection));
-
-    CS104_Connection_sendStartDT(connection);
-
-    InformationObject sc = (InformationObject)DoubleCommand_create(NULL, 10005, 1, false, 0);
-
-    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
-
-    InformationObject_destroy(sc);
-
-    Thread_sleep(500);
-
-    ASSERT_EQ(0, operateHandlerCalled);
-}
-
-TEST_F(ControlTest, CommandAckTimeout)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
-    iec104Server->registerControl(operateHandler);
-
-    iec104Server->ActConTimeout(200);
-    iec104Server->ActTermTimeout(200);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    ASSERT_TRUE(CS104_Connection_connect(connection));
-
-    CS104_Connection_sendStartDT(connection);
-
-    InformationObject sc = (InformationObject)SingleCommand_create(NULL, 10005, true, false, 0);
-
-    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
-
-    InformationObject_destroy(sc);
-
-    Thread_sleep(1000);
-
-    ASSERT_EQ(1, operateHandlerCalled);
-}
-
-TEST_F(ControlTest, CommandActCon)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
-    iec104Server->registerControl(operateHandler);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    iec104Server->ActConTimeout(1000);
-    iec104Server->ActTermTimeout(1000);
-
-    ASSERT_TRUE(CS104_Connection_connect(connection));
-
-    CS104_Connection_sendStartDT(connection);
-
-    InformationObject sc = (InformationObject)SingleCommand_create(NULL, 10005, true, false, 0);
-
-    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
-
-    InformationObject_destroy(sc);
-
-    Thread_sleep(200);
-
-    ASSERT_EQ(1, operateHandlerCalled);
-
-    // forward ACT-CON from south side
-    ForwardCommandAck("CM1", "C_SC_NA_1", 45, 10005, CS101_COT_ACTIVATION_CON, false);
-
-    Thread_sleep(200);
-
-    // forward ACT-TERM from south side
-    ForwardCommandAck("CM1", "C_SC_NA_1", 45, 10005, CS101_COT_ACTIVATION_TERMINATION, false);
-
-    Thread_sleep(1000);
-
-    ASSERT_EQ(2, asduHandlerCalled);
-    ASSERT_EQ(1, actConReceived);
-    ASSERT_FALSE(actConNegative);
-    ASSERT_EQ(1, actTermReceived);
-}
-
-TEST_F(ControlTest, CommandActConNegative)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
-    iec104Server->registerControl(operateHandler);
-
-    iec104Server->ActConTimeout(1000);
-    iec104Server->ActTermTimeout(1000);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    ASSERT_TRUE(CS104_Connection_connect(connection));
-
-    CS104_Connection_sendStartDT(connection);
-
-    InformationObject sc = (InformationObject)SingleCommand_create(NULL, 10005, true, false, 0);
-
-    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
-
-    InformationObject_destroy(sc);
-
-    Thread_sleep(200);
-
-    ASSERT_EQ(1, operateHandlerCalled);
-
-    // forward ACT-CON from south side
-    ForwardCommandAck("CM1", "C_SC_NA_1", 45, 10005, CS101_COT_ACTIVATION_CON, true);
-
-    Thread_sleep(200);
-
-    ASSERT_EQ(1, asduHandlerCalled);
-    ASSERT_EQ(1, actConReceived);
-    ASSERT_TRUE(actConNegative);
-    ASSERT_EQ(0, actTermReceived);
-}
-
-TEST_F(ControlTest, SinglePointCommandIOMissing)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
-    iec104Server->registerControl(operateHandler);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    ASSERT_TRUE(CS104_Connection_connect(connection));
-
-    CS104_Connection_sendStartDT(connection);
-
-    CS101_AppLayerParameters alParams = CS104_Connection_getAppLayerParameters(connection);
-
-    CS101_ASDU asdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION, 0, 45, false, false);
-
-    CS101_ASDU_setTypeID(asdu, C_SC_NA_1);
-
-    CS104_Connection_sendASDU(connection, asdu);
-
-    CS101_ASDU_destroy(asdu);
-
-    Thread_sleep(500);
-
-    ASSERT_EQ(0, operateHandlerCalled);
-}
-
-TEST_F(ControlTest, ReceiveSinglePointCommandWithTime)
-{
-    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
-
-    iec104Server->registerControl(operateHandler);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    ASSERT_TRUE(CS104_Connection_connect(connection));
-
-    CS104_Connection_sendStartDT(connection);
-
-    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
-
-    InformationObject sc = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
-
-    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
-
-    InformationObject_destroy(sc);
-
-    Thread_sleep(500);
-
-    ASSERT_EQ(1, operateHandlerCalled);
-
-    /* wait for time to become to old for configured cmd_exec_timeout parameter */
-    Thread_sleep(1200);
-
-    sc = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
-
-    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
-
-    InformationObject_destroy(sc);
-
-    Thread_sleep(500);
-
-    ASSERT_EQ(1, operateHandlerCalled);
-
-    free(timestamp);
 }

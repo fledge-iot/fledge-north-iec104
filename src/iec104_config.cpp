@@ -44,9 +44,20 @@ IEC104Config::deleteExchangeDefinitions()
     }
 }
 
+IEC104Config::SouthPluginMonitor::SouthPluginMonitor(std::string& assetName)
+{
+    m_assetName = assetName;
+    m_giStatus = GiStatus::IDLE;
+    m_connxStatus = ConnectionStatus::NOT_CONNECTED;
+}
+
 IEC104Config::~IEC104Config()
 {
     deleteExchangeDefinitions();
+
+    for (auto southPluginMonitor : m_monitoredSouthPlugins) {
+        delete southPluginMonitor;
+    }
 }
 
 bool
@@ -98,6 +109,31 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
 
     const Value& transportLayer = protocolStack["transport_layer"];
     const Value& applicationLayer = protocolStack["application_layer"];
+
+    if (protocolStack.HasMember("south_monitoring")) {
+        const Value& southMonitoring = protocolStack["south_monitoring"];
+
+        if (southMonitoring.IsArray()) {
+            for (const Value& southMonInst : southMonitoring.GetArray()) {;
+
+                if (southMonInst.HasMember("asset")) {
+                    if (southMonInst["asset"].IsString()) {
+                        std::string assetName = southMonInst["asset"].GetString();
+
+                        SouthPluginMonitor* monitor = new SouthPluginMonitor(assetName);
+
+                        m_monitoredSouthPlugins.push_back(monitor);
+                    }
+                    else {
+                        Logger::getLogger()->error("south_monitoring \"asset\" element has wrong type");
+                    }
+                }
+                else {
+                    Logger::getLogger()->error("south_monitoring is missing \"asset\" element");
+                }
+            }
+        }
+    }
 
     if (transportLayer.HasMember("redundancy_groups")) {
 
@@ -153,6 +189,22 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
             Logger::getLogger()->fatal("redundancy_groups is not an array -> ignore redundancy groups");
         }
     }
+
+    if (transportLayer.HasMember("mode")) {
+        if (transportLayer["mode"].IsString()) {
+            std::string modeValue = transportLayer["mode"].GetString();
+
+            if (modeValue == "accept_always") {
+                m_mode = IEC104Config::Mode::CONNECT_ALWAYS;
+            }
+            else if (modeValue == "accept_if_south_connx_started") {
+                m_mode = IEC104Config::Mode::CONNECT_IF_SOUTH_CONNX_STARTED;
+            }
+            else {
+                Logger::getLogger()->warn("transport_layer.mode has unknown value -> using mode: connect always");
+            }
+        }
+    } 
 
     if (transportLayer.HasMember("port")) {
         if (transportLayer["port"].IsInt()) {

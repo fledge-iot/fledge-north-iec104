@@ -260,6 +260,8 @@ void plugin_register(PLUGIN_HANDLE handle,
 		bool ( *write)(const char *name, const char *value, ControlDestination destination, ...),
 		int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...))
 {
+    Logger::getLogger()->info("plugin_register");
+
     IEC104Server* iec104 = (IEC104Server*)handle;
 
     iec104->registerControl(operation);

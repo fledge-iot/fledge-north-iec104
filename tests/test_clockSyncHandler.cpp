@@ -185,6 +185,8 @@ TEST_F(ClockSyncHandlerTest, clockSyncFalse)
 {
     iec104Server->setJsonConfig(protocol_stack_1, exchanged_data, tls);
 
+    Thread_sleep(500); /* wait for the server to start */
+
     CS104_Connection_setASDUReceivedHandler(connection, asduHandler, this);
 
     bool result = CS104_Connection_connect(connection);
@@ -215,6 +217,8 @@ TEST_F(ClockSyncHandlerTest, clockSyncFalse)
 TEST_F(ClockSyncHandlerTest, clockSyncTrue)
 {
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+
+    Thread_sleep(500); /* wait for the server to start */
 
     CS104_Connection_setASDUReceivedHandler(connection, asduHandler, this);
 
