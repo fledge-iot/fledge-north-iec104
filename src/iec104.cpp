@@ -338,7 +338,7 @@ IEC104Server::requestSouthConnectionStatus()
     }
     else {
         m_log->warn("m_oper not set -> call registerControl");
-        printf("WARNING: m_oper not set -> call registerControl\n");
+
         return false;
     }   
 }
@@ -359,7 +359,7 @@ IEC104Server::_monitoringThread()
         if (m_config->GetMode() == IEC104Config::Mode::CONNECT_ALWAYS) {
             if (serverRunning == false) {
                 CS104_Slave_start(m_slave);
-                printf("Server started - mode: CONNECT_ALWAYS\n");
+
                 m_log->warn("Server started - mode: CONNECT_ALWAYS");
                 serverRunning = true;
             }
@@ -368,7 +368,7 @@ IEC104Server::_monitoringThread()
             if (serverRunning == false) {
                 
                 if (checkIfSouthConnected()) {
-                    printf("Server started - mode: CONNECT_IF_SOUTH_CONNX_STARTED\n");
+
                     m_log->warn("Server started - mode: CONNECT_IF_SOUTH_CONNX_STARTED");
                     CS104_Slave_start(m_slave);
                     serverRunning = true;
@@ -432,14 +432,11 @@ setTimestamp(CP56Time2a destTime, CP56Time2a srcTime)
 void
 IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, DatapointValue* value, CP56Time2a ts, uint8_t quality)
 {
-    if (value == nullptr)
-        return;
-
     switch (typeId) {
         case M_SP_NA_1:
         case M_SP_TB_1:
             {
-                if (value->getType() == DatapointValue::dataTagType::T_INTEGER) {
+                if (value && (value->getType() == DatapointValue::dataTagType::T_INTEGER)) {
                     dp->m_value.sp.value = (unsigned int)value->toInt();
                 }
 
@@ -455,7 +452,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
         case M_DP_NA_1:
         case M_DP_TB_1:
             {
-                if (value->getType() == DatapointValue::dataTagType::T_INTEGER) {
+                if (value && (value->getType() == DatapointValue::dataTagType::T_INTEGER)) {
                     dp->m_value.dp.value = (unsigned int)value->toInt();
                 }
 
@@ -471,7 +468,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
         case M_ST_NA_1:
         case M_ST_TB_1:
             {
-                if (value->getType() == DatapointValue::dataTagType::T_INTEGER) {
+                if (value && (value->getType() == DatapointValue::dataTagType::T_INTEGER)) {
                     dp->m_value.stepPos.posValue = (int)(value->toInt() & 0x7f);
                     dp->m_value.stepPos.transient = (unsigned int)((value->toInt() & 0x80) != 0);
                 }
@@ -487,7 +484,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
         case M_ME_NA_1: /* normalized value */
         case M_ME_TD_1:
             {
-                if (value->getType() == DatapointValue::dataTagType::T_FLOAT) {
+                if (value && (value->getType() == DatapointValue::dataTagType::T_FLOAT)) {
                     dp->m_value.mv_normalized.value = (float)value->toDouble();
                 }
 
@@ -503,7 +500,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
         case M_ME_NB_1: /* scaled value */
         case M_ME_TE_1:
             {
-                if (value->getType() == DatapointValue::dataTagType::T_INTEGER) {
+                if (value && (value->getType() == DatapointValue::dataTagType::T_INTEGER)) {
                     dp->m_value.mv_scaled.value = (unsigned int)value->toInt();
                 }
 
@@ -519,7 +516,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
         case M_ME_NC_1: /* short float value */
         case M_ME_TF_1:
             {
-                if (value->getType() == DatapointValue::dataTagType::T_FLOAT) {
+                if (value && (value->getType() == DatapointValue::dataTagType::T_FLOAT)) {
                     dp->m_value.mv_short.value = (float)value->toDouble();
                 }
 
