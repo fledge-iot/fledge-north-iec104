@@ -1563,8 +1563,11 @@ IEC104Server::sendInterrogationResponse(IMasterConnection connection, CS101_ASDU
         }
     }
 
-    if (newASDU)
-        IMasterConnection_sendASDU(connection, newASDU);
+    if (newASDU) {
+        if (CS101_ASDU_getNumberOfElements(newASDU) > 0) {
+            IMasterConnection_sendASDU(connection, newASDU);
+        }
+    }
 
 
     IMasterConnection_sendACT_TERM(connection, asdu);
