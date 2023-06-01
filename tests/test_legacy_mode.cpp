@@ -365,7 +365,7 @@ createSouthEvent(bool withConnx, std::string connxValue, bool withGiStatus, std:
 
     DatapointValue dpv(datapoints, true);
 
-    Datapoint* dp = new Datapoint("iec104_south_event", dpv);
+    Datapoint* dp = new Datapoint("south_event", dpv);
 
     return dp;
 }
