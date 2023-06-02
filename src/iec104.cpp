@@ -1171,15 +1171,15 @@ IEC104Server::send(const vector<Reading*>& readings)
 
         for (Datapoint* dp : dataPoints) {
 
-            if (dp->getName() == "iec104_south_event") {
+            if (dp->getName() == "south_event") {
 
-                m_log->warn("Receive iec104_south_event");
+                m_log->warn("Receive south_event");
                 
                 // check if we know the south plugin
                 for (auto southPluginMonitor : m_config->GetMonitoredSouthPlugins()) {
                     if (assetName == southPluginMonitor->GetAssetName()) {
 
-                        m_log->warn("Found matching monitored plugin for iec104_south_event");
+                        m_log->warn("Found matching monitored plugin for south_event");
 
                         updateSouthMonitoringInstance(dp, southPluginMonitor);
 
