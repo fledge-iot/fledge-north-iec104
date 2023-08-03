@@ -141,7 +141,63 @@ static string exchanged_data = QUOTE({
                           "termination_timeout": 3000
                        }
                     ]
+                },
+                {
+                    "label":"CM2",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-14005",
+                          "typeid":"C_DC_NA_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"CM3",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-16005",
+                          "typeid":"C_RC_NA_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"CM4",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-18005",
+                          "typeid":"C_SE_NA_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"CM5",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-20005",
+                          "typeid":"C_SE_NB_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"CM6",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-22005",
+                          "typeid":"C_SE_NC_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
                 }
+
             ]
         }
     });
@@ -695,4 +751,347 @@ TEST_F(ControlTest, ReceiveSinglePointCommandWithTime)
     ASSERT_EQ(1, operateHandlerCalled);
 
     free(timestamp);
+}
+
+TEST_F(ControlTest, ReceiveDoublePointCommand)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    InformationObject sc = (InformationObject)DoubleCommand_create(NULL, 14005, 1, false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+}
+
+TEST_F(ControlTest, ReceiveDoublePointCommandWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject sc = (InformationObject)DoubleCommandWithCP56Time2a_create(NULL, 14005, true, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    sc = (InformationObject)DoubleCommandWithCP56Time2a_create(NULL, 14005, true, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    free(timestamp);
+}
+
+
+TEST_F(ControlTest, ReceiveMultipleSinglePointCommandWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject sc1 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    InformationObject sc2 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    InformationObject sc3 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    InformationObject sc4 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    InformationObject sc5 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc1);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc2);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc3);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc4);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc5);
+
+    InformationObject_destroy(sc1);
+    InformationObject_destroy(sc2);
+    InformationObject_destroy(sc3);
+    InformationObject_destroy(sc4);
+    InformationObject_destroy(sc5);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(5, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    sc1 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    sc2 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    sc3 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    sc4 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    sc5 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc1);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc2);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc3);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc4);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc5);
+
+    InformationObject_destroy(sc1);
+    InformationObject_destroy(sc2);
+    InformationObject_destroy(sc3);
+    InformationObject_destroy(sc4);
+    InformationObject_destroy(sc5);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(5, operateHandlerCalled);
+
+    free(timestamp);
+}
+
+TEST_F(ControlTest, ReceiveStepPointCommand)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+    
+    InformationObject rc = (InformationObject)StepCommand_create(NULL, 16005, IEC60870_STEP_INVALID_0 , false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, rc);
+
+    InformationObject_destroy(rc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+}
+
+
+TEST_F(ControlTest, ReceiveStepPointCommandWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject rc = (InformationObject)StepCommandWithCP56Time2a_create(NULL, 16005, IEC60870_STEP_INVALID_0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, rc);
+
+    InformationObject_destroy(rc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    rc = (InformationObject)StepCommandWithCP56Time2a_create(NULL, 14005, IEC60870_STEP_INVALID_0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, rc);
+
+    InformationObject_destroy(rc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    free(timestamp);
+}
+
+TEST_F(ControlTest, ReceiveSetPointCommandNormalized)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+    
+    InformationObject se = (InformationObject)SetpointCommandNormalized_create(NULL, 18005, 0 , false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+}
+
+TEST_F(ControlTest, ReceiveSetPointCommandNormalizedWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject se = (InformationObject)SetpointCommandNormalizedWithCP56Time2a_create(NULL, 18005, 0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    se = (InformationObject)SetpointCommandNormalizedWithCP56Time2a_create(NULL, 18005, 0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    free(timestamp);
+}
+
+
+TEST_F(ControlTest, ReceiveSetPointCommandScaled)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+    
+    InformationObject se = (InformationObject)SetpointCommandScaled_create(NULL, 20005, 0 , false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+}
+
+
+TEST_F(ControlTest, ReceiveSetPointCommandScaledWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject se = (InformationObject)SetpointCommandScaledWithCP56Time2a_create(NULL, 20005, 0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    se = (InformationObject)SetpointCommandScaledWithCP56Time2a_create(NULL, 20005, 0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    free(timestamp);
+}
+
+TEST_F(ControlTest, ReceiveSetPointCommandShort)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    iec104Server->registerControl(operateHandler);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+    
+    InformationObject se = (InformationObject)SetpointCommandShort_create(NULL, 22005, 0 , false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
 }
