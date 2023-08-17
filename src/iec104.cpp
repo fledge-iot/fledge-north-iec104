@@ -34,7 +34,7 @@ IEC104Server::IEC104Server() :
 {
 }
 
-IEC104Server::~IEC104Server() 
+IEC104Server::~IEC104Server()
 {
     removeAllOutstandingCommands();
 
@@ -68,6 +68,7 @@ IEC104Server::createTLSConfiguration()
         bool tlsConfigOk = true;
 
         string certificateStore = getDataDir() + string("/etc/certs/");
+        string certificateStorePem = getDataDir() + string("/etc/certs/pem/");
 
         if (m_config->GetOwnCertificate().length() == 0 || m_config->GetPrivateKey().length() == 0) {
             Logger::getLogger()->error("No private key and/or certificate configured for client");
@@ -76,7 +77,16 @@ IEC104Server::createTLSConfiguration()
 
         if (m_config->GetOwnCertificate().empty() == false)
         {
-            string ownCertFile = certificateStore + m_config->GetOwnCertificate();
+            string ownCert = m_config->GetOwnCertificate();
+
+            bool isPemOwnCertificate = ownCert.rfind(".pem") == ownCert.size() - 4;
+
+            string ownCertFile;
+
+            if(isPemOwnCertificate)
+                ownCertFile = certificateStorePem + ownCert;
+            else
+                ownCertFile = certificateStore + ownCert;
 
             if (access(ownCertFile.c_str(), R_OK) == 0) {
 
@@ -84,7 +94,7 @@ IEC104Server::createTLSConfiguration()
                     Logger::getLogger()->error("Failed to load own certificate from file: %s", ownCertFile.c_str());
                     tlsConfigOk = false;
                 }
-                
+
             }
             else {
                 Logger::getLogger()->error("Failed to access own certificate file: %s", ownCertFile.c_str());
@@ -97,12 +107,12 @@ IEC104Server::createTLSConfiguration()
             string privateKeyFile = certificateStore + m_config->GetPrivateKey();
 
             if (access(privateKeyFile.c_str(), R_OK) == 0) {
-                
+
                 if (TLSConfiguration_setOwnKeyFromFile(tlsConfig, privateKeyFile.c_str(), NULL) == false) {
                     Logger::getLogger()->error("Failed to load private key from file: %s", privateKeyFile.c_str());
                     tlsConfigOk = false;
                 }
-                
+
             }
             else {
                 Logger::getLogger()->error("Failed to access private key file: %s", privateKeyFile.c_str());
@@ -115,7 +125,14 @@ IEC104Server::createTLSConfiguration()
 
             for (std::string& remoteCert : m_config->GetRemoteCertificates())
             {
-                string remoteCertFile = certificateStore + remoteCert;
+                bool isPemRemoteCertificate = remoteCert.rfind(".pem") == remoteCert.size() - 4;
+
+                string remoteCertFile;
+
+                if(isPemRemoteCertificate)
+                    remoteCertFile = certificateStorePem + remoteCert;
+                else
+                    remoteCertFile = certificateStore + remoteCert;
 
                 if (access(remoteCertFile.c_str(), R_OK) == 0) {
                     if (TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, remoteCertFile.c_str()) == false) {
@@ -137,7 +154,14 @@ IEC104Server::createTLSConfiguration()
 
             for (std::string& caCert : m_config->GetCaCertificates())
             {
-                string caCertFile = certificateStore + caCert;
+                bool isPemCaCertificate = caCert.rfind(".pem") == caCert.size() - 4;
+
+                string caCertFile;
+
+                if(isPemCaCertificate)
+                    caCertFile = certificateStorePem + caCert;
+                else
+                    caCertFile = certificateStore + caCert;
 
                 if (access(caCertFile.c_str(), R_OK) == 0) {
                     if (TLSConfiguration_addCACertificateFromFile(tlsConfig, caCertFile.c_str()) == false) {
@@ -195,7 +219,7 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
 
         m_log->info("TCP/IP parameters:");
         m_log->info("  TCP port: %i", m_config->TcpPort());
-        
+
         if (m_config->bindOnIp()) {
             CS104_Slave_setLocalAddress(m_slave, m_config->GetLocalIP());
             m_log->info("  IP address: %s", m_config->GetLocalIP());
@@ -312,7 +336,7 @@ void
 IEC104Server::registerControl(int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...))
 {
     m_oper = operation;
-    
+
     m_log->warn("RegisterControl is called");
 }
 
@@ -340,7 +364,7 @@ IEC104Server::requestSouthConnectionStatus()
         m_log->warn("m_oper not set -> call registerControl");
 
         return false;
-    }   
+    }
 }
 
 void
@@ -366,7 +390,7 @@ IEC104Server::_monitoringThread()
         }
         else if (m_config->GetMode() == IEC104Config::Mode::CONNECT_IF_SOUTH_CONNX_STARTED) {
             if (serverRunning == false) {
-                
+
                 if (checkIfSouthConnected()) {
 
                     m_log->warn("Server started - mode: CONNECT_IF_SOUTH_CONNX_STARTED");
@@ -383,7 +407,7 @@ IEC104Server::_monitoringThread()
                 }
             }
         }
-        
+
         /* check timeouts for outstanding commands */
         m_outstandingCommandsLock.lock();
 
@@ -397,7 +421,7 @@ IEC104Server::_monitoringThread()
 
             if (outstandingCommand->hasTimedOut(currentTime)) {
                 m_log->warn("command %i:%i (type: %i) timeout", outstandingCommand->CA(), outstandingCommand->IOA(), outstandingCommand->TypeId());
-         
+
                 it = m_outstandingCommands.erase(it);
 
                 delete outstandingCommand;
@@ -496,7 +520,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
             }
 
             break;
- 
+
         case M_ME_NB_1: /* scaled value */
         case M_ME_TE_1:
             {
@@ -708,7 +732,7 @@ IEC104Server::removeOutstandingCommands(IMasterConnection connection)
 
     std::vector<IEC104OutstandingCommand*>::iterator it;
 
-    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();) 
+    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();)
     {
         IEC104OutstandingCommand* outstandingCommand = *it;
 
@@ -720,7 +744,7 @@ IEC104Server::removeOutstandingCommands(IMasterConnection connection)
 
             delete outstandingCommand;
         }
-        else 
+        else
         {
             it++;
         }
@@ -736,7 +760,7 @@ IEC104Server::removeAllOutstandingCommands()
 
     std::vector<IEC104OutstandingCommand*>::iterator it;
 
-    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();) 
+    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();)
     {
         IEC104OutstandingCommand* outstandingCommand = *it;
 
@@ -987,7 +1011,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                         m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationBroadcast, NULL);
                     else
                         m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
-                }   
+                }
                 break;
 
             case C_SE_TA_1:
@@ -1063,7 +1087,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                         m_oper((char*)"SetpointShort", 3, names, parameters, DestinationBroadcast, NULL);
                     else
                         m_oper((char*)"SetpointShort", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
-                }   
+                }
                 break;
 
             case C_SE_TC_1:
@@ -1145,7 +1169,7 @@ IEC104Server::updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPl
             }
 
             m_log->warn("south gi status for %s changed to %s", southPluginMonitor->GetAssetName().c_str(), giStatusValue.c_str());
-        
+
             southPluginMonitor->SetGiStatus(giStatus);
         }
     }
@@ -1167,14 +1191,14 @@ IEC104Server::send(const vector<Reading*>& readings)
     for (auto reading = readings.cbegin(); reading != readings.cend(); reading++)
     {
         vector<Datapoint*>& dataPoints = (*reading)->getReadingData();
-        string assetName = (*reading)->getAssetName();  
+        string assetName = (*reading)->getAssetName();
 
         for (Datapoint* dp : dataPoints) {
 
             if (dp->getName() == "south_event") {
 
                 m_log->warn("Receive south_event");
-                
+
                 // check if we know the south plugin
                 for (auto southPluginMonitor : m_config->GetMonitoredSouthPlugins()) {
                     if (assetName == southPluginMonitor->GetAssetName()) {
@@ -1312,8 +1336,8 @@ IEC104Server::send(const vector<Reading*>& readings)
                         // update internal value
                         m_updateDataPoint(dp, (IEC60870_5_TypeID)type, value, ts, qd);
 
-                        if (cot == CS101_COT_PERIODIC || cot == CS101_COT_SPONTANEOUS || 
-                            cot == CS101_COT_RETURN_INFO_REMOTE || cot == CS101_COT_RETURN_INFO_LOCAL || 
+                        if (cot == CS101_COT_PERIODIC || cot == CS101_COT_SPONTANEOUS ||
+                            cot == CS101_COT_RETURN_INFO_REMOTE || cot == CS101_COT_RETURN_INFO_LOCAL ||
                             cot == CS101_COT_BACKGROUND_SCAN)
                         {
                             m_enqueueSpontDatapoint(dp, cot, (IEC60870_5_TypeID)type);
@@ -1676,7 +1700,7 @@ IEC104Server::checkIfCmdTimeIsValid(int typeId, InformationObject io)
         case C_SC_TA_1:
             cmdTime = SingleCommandWithCP56Time2a_getTimestamp((SingleCommandWithCP56Time2a)io);
             break;
-            
+
         case C_DC_TA_1:
             cmdTime = DoubleCommandWithCP56Time2a_getTimestamp((DoubleCommandWithCP56Time2a)io);
             break;
@@ -1744,11 +1768,11 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                     /* check if command has an allowed OA */
                     if (self->m_config->IsOriginatorAllowed(CS101_ASDU_getOA(asdu)))
                     {
-                        int ioa = InformationObject_getObjectAddress(io);       
+                        int ioa = InformationObject_getObjectAddress(io);
 
                         IEC104DataPoint* dp = ld[ioa];
 
-                        if (dp) 
+                        if (dp)
                         {
                             auto typeId = CS101_ASDU_getTypeID(asdu);
 
@@ -1766,7 +1790,7 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                             acceptCommand = false;
 
                                             printf("Invalid timestmap -> ignore\n");
-                                            
+
                                             /* send negative response -> according to IEC 60870-5-104 the command should be silently ignored instead! */
                                             CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
                                             CS101_ASDU_setNegative(asdu, true);
@@ -1799,7 +1823,7 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                 }
                                 else {
                                     self->m_log->warn("Command not accepted");
-                                    CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID); 
+                                    CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
                                 }
                             }
                             else {
@@ -1832,7 +1856,7 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
             CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_COT);
         }
 
-        if (sendResponse) 
+        if (sendResponse)
         {
             IMasterConnection_sendASDU(connection, asdu);
         }
