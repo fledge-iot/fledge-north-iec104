@@ -137,7 +137,7 @@ IEC104DataPoint::typeIdToDataType(int typeId)
         case C_SC_NA_1:
         case C_SC_TA_1:
             dataType = IEC60870_TYPE_SP;
-            break;
+            break; //LCOV_EXCL_LINE 
 
         case M_DP_NA_1:
         case M_DP_TA_1:
@@ -145,7 +145,7 @@ IEC104DataPoint::typeIdToDataType(int typeId)
         case C_DC_NA_1:
         case C_DC_TA_1:
             dataType = IEC60870_TYPE_DP;
-            break;
+            break; //LCOV_EXCL_LINE
 
         case M_ST_NA_1:
         case M_ST_TA_1:
@@ -153,7 +153,7 @@ IEC104DataPoint::typeIdToDataType(int typeId)
         case C_RC_NA_1:
         case C_RC_TA_1:
             dataType = IEC60870_TYPE_STEP_POS;
-            break;
+            break; //LCOV_EXCL_LINE
 
         case M_ME_NA_1:
         case M_ME_TA_1:
@@ -161,7 +161,7 @@ IEC104DataPoint::typeIdToDataType(int typeId)
         case C_SE_NA_1:
         case C_SE_TA_1:
             dataType = IEC60870_TYPE_NORMALIZED;
-            break;
+            break; //LCOV_EXCL_LINE
 
         case M_ME_NB_1:
         case M_ME_TB_1:
@@ -169,7 +169,7 @@ IEC104DataPoint::typeIdToDataType(int typeId)
         case C_SE_NB_1:
         case C_SE_TB_1:
             dataType = IEC60870_TYPE_SCALED;
-            break;
+            break; //LCOV_EXCL_LINE
 
         case M_ME_NC_1:
         case M_ME_TC_1:
@@ -177,10 +177,10 @@ IEC104DataPoint::typeIdToDataType(int typeId)
         case C_SE_NC_1:
         case C_SE_TC_1:
             dataType = IEC60870_TYPE_SHORT;
-            break;
+            break; //LCOV_EXCL_LINE
 
         default:
-            break;
+            break; //LCOV_EXCL_LINE
     }
 
     return dataType;
@@ -212,7 +212,7 @@ IEC104DataPoint::isCommand()
 {
     return m_isCommand;
 }
-
+ 
 bool
 IEC104DataPoint::isMessageTypeMatching(int expectedType)
 {
@@ -226,7 +226,7 @@ IEC104DataPoint::isMessageTypeMatching(int expectedType)
                 isMatching = true;
             }
 
-            break;
+            break; //LCOV_EXCL_LINE
 
         case M_DP_NA_1:
         case M_DP_TB_1:
@@ -234,7 +234,7 @@ IEC104DataPoint::isMessageTypeMatching(int expectedType)
                 isMatching = true;
             }
 
-            break;
+            break; //LCOV_EXCL_LINE
 
         case M_ME_NA_1:
         case M_ME_TD_1:
@@ -242,7 +242,7 @@ IEC104DataPoint::isMessageTypeMatching(int expectedType)
                 isMatching = true;
             }
 
-            break;
+            break; //LCOV_EXCL_LINE
 
         case M_ME_NB_1:
         case M_ME_TE_1:
@@ -250,7 +250,7 @@ IEC104DataPoint::isMessageTypeMatching(int expectedType)
                 isMatching = true;
             }
 
-            break;
+            break; //LCOV_EXCL_LINE
 
         case M_ME_NC_1:
         case M_ME_TF_1:
@@ -258,7 +258,7 @@ IEC104DataPoint::isMessageTypeMatching(int expectedType)
                 isMatching = true;
             }
 
-            break;
+            break; //LCOV_EXCL_LINE
 
         case M_ST_NA_1:
         case M_ST_TB_1:
@@ -266,11 +266,11 @@ IEC104DataPoint::isMessageTypeMatching(int expectedType)
                 isMatching = true;
             }
 
-            break;
+            break; //LCOV_EXCL_LINE
 
         default:
             //Type not supported
-            break;
+            break; //LCOV_EXCL_LINE
     }
 
     return isMatching;
@@ -320,13 +320,16 @@ bool IEC104DataPoint::isMatchingCommand(int typeId)
     return false;
 }
 
-IEC104DataPoint::IEC104DataPoint(std::string label, int ca, int ioa, int type, bool isCommand)
+
+
+IEC104DataPoint::IEC104DataPoint(std::string label, int ca, int ioa, int type, bool isCommand, int gi_groups)
 {
     m_ca = ca;
     m_ioa = ioa;
     m_type = type;
     m_isCommand = isCommand;
     m_label = label;
+    m_gi_groups = gi_groups;
 
     //TODO set intial value and quality to invalid
 
@@ -335,37 +338,37 @@ IEC104DataPoint::IEC104DataPoint(std::string label, int ca, int ioa, int type, b
             m_value.sp.value = 0;
             m_value.sp.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
             
-            break;
+            break; //LCOV_EXCL_LINE
 
         case IEC60870_TYPE_DP:
             m_value.dp.value = 0;
             m_value.dp.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
             
-            break;
+            break; //LCOV_EXCL_LINE
 
         case IEC60870_TYPE_STEP_POS:
             m_value.stepPos.posValue = 0;
             m_value.stepPos.transient = 0;
             m_value.stepPos.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
             
-            break;
+            break; //LCOV_EXCL_LINE
 
         case IEC60870_TYPE_NORMALIZED:
             m_value.mv_normalized.value = 0;
             m_value.mv_normalized.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
 
-            break;
+            break; //LCOV_EXCL_LINE
 
         case IEC60870_TYPE_SCALED:
             m_value.mv_scaled.value = 0;
             m_value.mv_scaled.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
 
-            break;
+            break; //LCOV_EXCL_LINE
 
         case IEC60870_TYPE_SHORT:
             m_value.mv_short.value = 0;
             m_value.mv_short.quality = IEC60870_QUALITY_INVALID | IEC60870_QUALITY_NON_TOPICAL;
 
-            break;
+            break; //LCOV_EXCL_LINE
     } 
 }
