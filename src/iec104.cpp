@@ -34,7 +34,7 @@ IEC104Server::IEC104Server() :
 {
 }
 
-IEC104Server::~IEC104Server() 
+IEC104Server::~IEC104Server()
 {
     removeAllOutstandingCommands();
 
@@ -84,7 +84,7 @@ IEC104Server::createTLSConfiguration()
                     Logger::getLogger()->error("Failed to load own certificate from file: %s", ownCertFile.c_str()); //LCOV_EXCL_LINE
                     tlsConfigOk = false;
                 }
-                
+
             }
             else {
                 Logger::getLogger()->error("Failed to access own certificate file: %s", ownCertFile.c_str()); //LCOV_EXCL_LINE
@@ -97,12 +97,12 @@ IEC104Server::createTLSConfiguration()
             string privateKeyFile = certificateStore + m_config->GetPrivateKey();
 
             if (access(privateKeyFile.c_str(), R_OK) == 0) {
-                
+
                 if (TLSConfiguration_setOwnKeyFromFile(tlsConfig, privateKeyFile.c_str(), NULL) == false) {
                     Logger::getLogger()->error("Failed to load private key from file: %s", privateKeyFile.c_str()); //LCOV_EXCL_LINE
                     tlsConfigOk = false;
                 }
-                
+
             }
             else {
                 Logger::getLogger()->error("Failed to access private key file: %s", privateKeyFile.c_str()); //LCOV_EXCL_LINE
@@ -340,7 +340,7 @@ IEC104Server::requestSouthConnectionStatus()
         m_log->warn("m_oper not set -> call registerControl");
 
         return false;
-    }   
+    }
 }
 
 void
@@ -366,7 +366,7 @@ IEC104Server::_monitoringThread()
         }
         else if (m_config->GetMode() == IEC104Config::Mode::CONNECT_IF_SOUTH_CONNX_STARTED) {
             if (serverRunning == false) {
-                
+
                 if (checkIfSouthConnected()) {
 
                     m_log->warn("Server started - mode: CONNECT_IF_SOUTH_CONNX_STARTED"); //LCOV_EXCL_LINE
@@ -383,7 +383,7 @@ IEC104Server::_monitoringThread()
                 }
             }
         }
-        
+
         /* check timeouts for outstanding commands */
         m_outstandingCommandsLock.lock();
 
@@ -692,7 +692,7 @@ IEC104Server::removeOutstandingCommands(IMasterConnection connection)
 
     std::vector<IEC104OutstandingCommand*>::iterator it;
 
-    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();) 
+    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();)
     {
         IEC104OutstandingCommand* outstandingCommand = *it;
 
@@ -704,7 +704,7 @@ IEC104Server::removeOutstandingCommands(IMasterConnection connection)
 
             delete outstandingCommand;
         }
-        else 
+        else
         {
             it++;
         }
@@ -720,7 +720,7 @@ IEC104Server::removeAllOutstandingCommands()
 
     std::vector<IEC104OutstandingCommand*>::iterator it;
 
-    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();) 
+    for (it = m_outstandingCommands.begin(); it != m_outstandingCommands.end();)
     {
         IEC104OutstandingCommand* outstandingCommand = *it;
 
@@ -789,6 +789,18 @@ IEC104Server::handleActTerm(int type, int ca, int ioa, bool isNegative)
     m_outstandingCommandsLock.unlock();
 }
 
+enum CommandParameters{
+    TYPE,
+    CA,
+    IOA,
+    COT,
+    NEGATIVE,
+    SE,
+    TEST,
+    TS,
+    VALUE
+};
+
 bool
 IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMasterConnection connection)
 {
@@ -799,54 +811,69 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
     else {
         IEC60870_5_TypeID typeId = CS101_ASDU_getTypeID(asdu);
 
-        // parameter[0] = CA
-        // parameter[1] = IOA
-        // parameter[2] = value
-        // parameter[3] = select (optional - not used for setpoints)
+        int parameterCount = 9;
 
-        int parameterCount = 2;
-
+        std::string typeStr = IEC104DataPoint::getStringFromTypeID(typeId);
         std::string caStr = std::to_string(CS101_ASDU_getCA(asdu));
         std::string ioaStr = std::to_string(InformationObject_getObjectAddress(command));
- 
-        char* s_ca = (char*)caStr.c_str(); //LCOV_EXCL_LINE
-        char* s_ioa = (char*)ioaStr.c_str(); //LCOV_EXCL_LINE
-        char* s_val = NULL; //LCOV_EXCL_LINE
-        char* s_select = NULL; //LCOV_EXCL_LINE
+        std::string cotStr = std::to_string(CS101_ASDU_getCOT(asdu));
+        std::string testStr = std::to_string(CS101_ASDU_isTest(asdu) ? 1 : 0);
+        std::string negativeStr = std::to_string(CS101_ASDU_isNegative(asdu) ? 1 : 0);
 
-        char* parameters[4];
-        char* names[4];
+        char* s_type = (char*) typeStr.c_str();
+        char* s_ca = (char*)caStr.c_str();
+        char* s_ioa = (char*)ioaStr.c_str();
+        char* s_cot = (char*)cotStr.c_str();
+        char* s_test = (char*)testStr.c_str();
+        char* s_negative = (char*)negativeStr.c_str();
+        char* s_val = NULL;
+        char* s_select = (char*) "0";
+        char* s_ts = (char*) "";
 
-        names[0] = (char*)"ca";
-        names[1] = (char*)"ioa";
-        names[2] = (char*)"value";
-        names[3] = (char*)"se";
+        char* parameters[parameterCount];
+        char* names[parameterCount];
 
-        parameters[0] = s_ca;
-        parameters[1] = s_ioa;
+        names[TYPE] = (char*)"co_type";
+        names[CA] = (char*)"co_ca";
+        names[IOA] = (char*)"co_ioa";
+        names[COT] = (char*)"co_cot";
+        names[NEGATIVE] = (char*)"co_negative";
+        names[SE] = (char*)"co_se";
+        names[TEST] = (char*)"co_test";
+        names[TS] = (char*)"co_ts";
+        names[VALUE] = (char*)"co_value";
+
+        parameters[TYPE] = s_type;
+        parameters[CA] = s_ca;
+        parameters[IOA] = s_ioa;
+        parameters[COT] = s_cot;
+        parameters[NEGATIVE] = s_negative;
+        parameters[SE] = s_select;
+        parameters[TEST] = s_test;
+        parameters[TS] = s_ts;
 
         switch (typeId) {
 
             case C_SC_NA_1:
                 {
+                    parameters[0] = (char*)"C_SC_NA_1";
+
                     SingleCommand sc = (SingleCommand)command;
 
                     s_val = (char*)(SingleCommand_getState(sc) ? "1" : "0");
                     s_select = (char*)(SingleCommand_isSelect(sc) ? "1" : "0");
 
-                    parameters[2] = s_val;
-                    parameters[3] = s_select;
-
-                    parameterCount = 4;
+                    parameters[VALUE] = s_val;
+                    parameters[SE] = s_select;
 
                     addToOutstandingCommands(asdu, connection, SingleCommand_isSelect(sc));
 
                     m_log->info("Send single command (%s)", SingleCommand_isSelect(sc) ? "select" : "execute"); //LCOV_EXCL_LINE
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"SingleCommand", 4, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SingleCommand", 4, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break; //LCOV_EXCL_LINE
 
@@ -857,17 +884,21 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                     s_val = (char*)(SingleCommand_getState((SingleCommand)sc) ? "1" : "0");
                     s_select = (char*)(SingleCommand_isSelect((SingleCommand)sc) ? "1" : "0");
 
-                    parameters[2] = s_val;
-                    parameters[3] = s_select;
+                    CP56Time2a timestamp = SingleCommandWithCP56Time2a_getTimestamp(sc);
 
-                    parameterCount = 4;
+                    uint64_t msTimeStamp = CP56Time2a_toMsTimestamp(timestamp);
+
+                    parameters[TS] = (char*)(std::to_string(msTimeStamp).c_str());
+
+                    parameters[VALUE] = s_val;
+                    parameters[SE] = s_select;
 
                     addToOutstandingCommands(asdu, connection, SingleCommand_isSelect((SingleCommand)sc));
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"SingleCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SingleCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break; //LCOV_EXCL_LINE
 
@@ -878,17 +909,15 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                     s_val = (char*)std::to_string(DoubleCommand_getState(dc)).c_str();
                     s_select = (char*)(DoubleCommand_isSelect(dc) ? "1" : "0");
 
-                    parameters[2] = s_val;
-                    parameters[3] = s_select;
-
-                    parameterCount = 4;
+                    parameters[VALUE] = s_val;
+                    parameters[SE] = s_select;
 
                     addToOutstandingCommands(asdu, connection, DoubleCommand_isSelect(dc));
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"DoubleCommand", 4, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"DoubleCommand", 4, names, parameters, DestinationBroadcast, DestinationService, m_config->CmdDest().c_str());
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, DestinationService, m_config->CmdDest().c_str());
                 }
                 break; //LCOV_EXCL_LINE
 
@@ -899,17 +928,21 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                     s_val = (char*)std::to_string(DoubleCommand_getState((DoubleCommand)dc)).c_str();
                     s_select = (char*)(DoubleCommand_isSelect((DoubleCommand)dc) ? "1" : "0");
 
-                    parameters[2] = s_val;
-                    parameters[3] = s_select;
+                    CP56Time2a timestamp = DoubleCommandWithCP56Time2a_getTimestamp(dc);
 
-                    parameterCount = 4;
+                    uint64_t msTimeStamp = CP56Time2a_toMsTimestamp(timestamp);
+
+                    parameters[TS] = (char*)(std::to_string(msTimeStamp).c_str());
+
+                    parameters[VALUE] = s_val;
+                    parameters[SE] = s_select;
 
                     addToOutstandingCommands(asdu, connection, DoubleCommand_isSelect((DoubleCommand)dc));
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"DoubleCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"DoubleCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break; //LCOV_EXCL_LINE
 
@@ -920,17 +953,15 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                     s_val = (char*)std::to_string(StepCommand_getState(rc)).c_str();
                     s_select = (char*)(StepCommand_isSelect(rc) ? "1" : "0");
 
-                    parameters[2] = s_val;
-                    parameters[3] = s_select;
-
-                    parameterCount = 4;
+                    parameters[VALUE] = s_val;
+                    parameters[SE] = s_select;
 
                     addToOutstandingCommands(asdu, connection, StepCommand_isSelect(rc));
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"StepCommand", 4, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"StepCommand", 4, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break; //LCOV_EXCL_LINE
 
@@ -941,17 +972,21 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
                     s_val = (char*)std::to_string(StepCommand_getState((StepCommand)rc)).c_str();
                     s_select = (char*)(StepCommand_isSelect((StepCommand)rc) ? "1" : "0");
 
-                    parameters[2] = s_val;
-                    parameters[3] = s_select;
+                    CP56Time2a timestamp = StepCommandWithCP56Time2a_getTimestamp(rc);
 
-                    parameterCount = 4;
+                    uint64_t msTimeStamp = CP56Time2a_toMsTimestamp(timestamp);
+
+                    parameters[TS] = (char*)(std::to_string(msTimeStamp).c_str());
+
+                    parameters[VALUE] = s_val;
+                    parameters[SE] = s_select;
 
                     addToOutstandingCommands(asdu, connection, StepCommand_isSelect((StepCommand)rc));
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"StepCommandWithCP56Time2a", 4, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"StepCommandWithCP56Time2a", 4, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break; //LCOV_EXCL_LINE
 
@@ -961,18 +996,16 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     s_val = (char*)(std::to_string(SetpointCommandNormalized_getValue(spn)).c_str());
 
-                    parameters[2] = s_val;
-
-                    parameterCount = 3;
+                    parameters[VALUE] = s_val;
 
                     addToOutstandingCommands(asdu, connection, false);
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointNormalized", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
-                }   
-                break; //LCOV_EXCL_LINE
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                }
+                break;
 
             case C_SE_TA_1:
                 {
@@ -980,16 +1013,20 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     s_val = (char*)(std::to_string(SetpointCommandNormalized_getValue((SetpointCommandNormalized)spn)).c_str());
 
-                    parameters[2] = s_val;
+                    CP56Time2a timestamp = SetpointCommandNormalizedWithCP56Time2a_getTimestamp(spn);
 
-                    parameterCount = 3;
+                    uint64_t msTimeStamp = CP56Time2a_toMsTimestamp(timestamp);
+
+                    parameters[TS] = (char*)(std::to_string(msTimeStamp).c_str());
+
+                    parameters[VALUE] = s_val;
 
                     addToOutstandingCommands(asdu, connection, false);
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointNormalizedWithCP56Time2a", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break; //LCOV_EXCL_LINE
 
@@ -999,16 +1036,14 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     s_val = (char*)(std::to_string(SetpointCommandScaled_getValue(sps)).c_str());
 
-                    parameters[2] = s_val;
-
-                    parameterCount = 3;
+                    parameters[VALUE] = s_val;
 
                     addToOutstandingCommands(asdu, connection, false);
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"SetpointScaled", 3, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointScaled", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break; //LCOV_EXCL_LINE
 
@@ -1018,16 +1053,20 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     s_val = (char*)(std::to_string(SetpointCommandScaled_getValue((SetpointCommandScaled)sps)).c_str());
 
-                    parameters[2] = s_val;
+                    CP56Time2a timestamp = SetpointCommandScaledWithCP56Time2a_getTimestamp(sps);
 
-                    parameterCount = 3;
+                    uint64_t msTimeStamp = CP56Time2a_toMsTimestamp(timestamp);
+
+                    parameters[TS] = (char*)(std::to_string(msTimeStamp).c_str());
+
+                    parameters[VALUE] = s_val;
 
                     addToOutstandingCommands(asdu, connection, false);
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"SetpointScaledWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointScaledWithCP56Time2a", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break; //LCOV_EXCL_LINE
 
@@ -1037,18 +1076,16 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     s_val = (char*)(std::to_string(SetpointCommandShort_getValue(spf)).c_str());
 
-                    parameters[2] = s_val;
-
-                    parameterCount = 3;
+                    parameters[VALUE] = s_val;
 
                     addToOutstandingCommands(asdu, connection, false);
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"SetpointShort", 3, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointShort", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
-                }   
-                break; //LCOV_EXCL_LINE
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                }
+                break;
 
             case C_SE_TC_1:
                 {
@@ -1056,16 +1093,20 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     s_val = (char*)(std::to_string(SetpointCommandShort_getValue((SetpointCommandShort)spf)).c_str());
 
-                    parameters[2] = s_val;
+                    CP56Time2a timestamp = SetpointCommandShortWithCP56Time2a_getTimestamp(spf);
 
-                    parameterCount = 3;
+                    uint64_t msTimeStamp = CP56Time2a_toMsTimestamp(timestamp);
+
+                    parameters[TS] = (char*)(std::to_string(msTimeStamp).c_str());
+
+                    parameters[VALUE] = s_val;
 
                     addToOutstandingCommands(asdu, connection, false);
 
                     if (m_config->CmdDest() == "")
-                        m_oper((char*)"SetpointShortWithCP56Time2a", 3, names, parameters, DestinationBroadcast, NULL);
+                        m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
                     else
-                        m_oper((char*)"SetpointShortWithCP56Time2a", 3, names, parameters, DestinationService, m_config->CmdDest().c_str());
+                        m_oper((char*) "IEC104Command", parameterCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
                 }
                 break; //LCOV_EXCL_LINE
 
@@ -1151,7 +1192,7 @@ IEC104Server::send(const vector<Reading*>& readings)
     for (auto reading = readings.cbegin(); reading != readings.cend(); reading++)
     {
         vector<Datapoint*>& dataPoints = (*reading)->getReadingData();
-        string assetName = (*reading)->getAssetName();  
+        string assetName = (*reading)->getAssetName();
 
         for (Datapoint* dp : dataPoints) {
 
@@ -1296,8 +1337,8 @@ IEC104Server::send(const vector<Reading*>& readings)
                         // update internal value
                         m_updateDataPoint(dp, (IEC60870_5_TypeID)type, value, ts, qd);
 
-                        if (cot == CS101_COT_PERIODIC || cot == CS101_COT_SPONTANEOUS || 
-                            cot == CS101_COT_RETURN_INFO_REMOTE || cot == CS101_COT_RETURN_INFO_LOCAL || 
+                        if (cot == CS101_COT_PERIODIC || cot == CS101_COT_SPONTANEOUS ||
+                            cot == CS101_COT_RETURN_INFO_REMOTE || cot == CS101_COT_RETURN_INFO_LOCAL ||
                             cot == CS101_COT_BACKGROUND_SCAN)
                         {
                             m_enqueueSpontDatapoint(dp, cot, (IEC60870_5_TypeID)type);
@@ -1736,11 +1777,11 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                     /* check if command has an allowed OA */
                     if (self->m_config->IsOriginatorAllowed(CS101_ASDU_getOA(asdu)))
                     {
-                        int ioa = InformationObject_getObjectAddress(io);       
+                        int ioa = InformationObject_getObjectAddress(io);
 
                         IEC104DataPoint* dp = ld[ioa];
 
-                        if (dp) 
+                        if (dp)
                         {
                             auto typeId = CS101_ASDU_getTypeID(asdu);
 
@@ -1757,8 +1798,6 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                             self->m_log->warn("command (%i) for %i:%i has invalid timestamp -> ignore", typeId, ca, ioa);//LCOV_EXCL_LINE
                                             acceptCommand = false;
 
-                                            printf("Invalid timestmap -> ignore\n");//LCOV_EXCL_LINE
-                                            
                                             /* send negative response -> according to IEC 60870-5-104 the command should be silently ignored instead! */
                                             CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);
                                             CS101_ASDU_setNegative(asdu, true);
@@ -1824,7 +1863,7 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
             CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_COT);
         }
 
-        if (sendResponse) 
+        if (sendResponse)
         {
             IMasterConnection_sendASDU(connection, asdu);
         }
