@@ -29,7 +29,7 @@ using namespace std;
 static bool running = true;
 
 IEC104Server::IEC104Server() :
-    m_config(new IEC104Config()), 
+    m_config(new IEC104Config()),
     m_log(Logger::getLogger())
 {
 }
@@ -68,26 +68,36 @@ IEC104Server::createTLSConfiguration()
         bool tlsConfigOk = true;
 
         string certificateStore = getDataDir() + string("/etc/certs/");
+        string certificateStorePem = getDataDir() + string("/etc/certs/pem/");
 
         if (m_config->GetOwnCertificate().length() == 0 || m_config->GetPrivateKey().length() == 0) {
-            Logger::getLogger()->error("No private key and/or certificate configured for client"); //LCOV_EXCL_LINE
+            Logger::getLogger()->error("No private key and/or certificate configured for client");
             tlsConfigOk = false;
         }
 
         if (m_config->GetOwnCertificate().empty() == false)
         {
-            string ownCertFile = certificateStore + m_config->GetOwnCertificate();
+            string ownCert = m_config->GetOwnCertificate();
+
+            bool isPemOwnCertificate = ownCert.rfind(".pem") == ownCert.size() - 4;
+
+            string ownCertFile;
+
+            if(isPemOwnCertificate)
+                ownCertFile = certificateStorePem + ownCert;
+            else
+                ownCertFile = certificateStore + ownCert;
 
             if (access(ownCertFile.c_str(), R_OK) == 0) {
 
                 if (TLSConfiguration_setOwnCertificateFromFile(tlsConfig, ownCertFile.c_str()) == false) {
-                    Logger::getLogger()->error("Failed to load own certificate from file: %s", ownCertFile.c_str()); //LCOV_EXCL_LINE
+                    Logger::getLogger()->error("Failed to load own certificate from file: %s", ownCertFile.c_str());
                     tlsConfigOk = false;
                 }
 
             }
             else {
-                Logger::getLogger()->error("Failed to access own certificate file: %s", ownCertFile.c_str()); //LCOV_EXCL_LINE
+                Logger::getLogger()->error("Failed to access own certificate file: %s", ownCertFile.c_str());
                 tlsConfigOk = false;
             }
         }
@@ -99,13 +109,13 @@ IEC104Server::createTLSConfiguration()
             if (access(privateKeyFile.c_str(), R_OK) == 0) {
 
                 if (TLSConfiguration_setOwnKeyFromFile(tlsConfig, privateKeyFile.c_str(), NULL) == false) {
-                    Logger::getLogger()->error("Failed to load private key from file: %s", privateKeyFile.c_str()); //LCOV_EXCL_LINE
+                    Logger::getLogger()->error("Failed to load private key from file: %s", privateKeyFile.c_str());
                     tlsConfigOk = false;
                 }
 
             }
             else {
-                Logger::getLogger()->error("Failed to access private key file: %s", privateKeyFile.c_str()); //LCOV_EXCL_LINE
+                Logger::getLogger()->error("Failed to access private key file: %s", privateKeyFile.c_str());
                 tlsConfigOk = false;
             }
         }
@@ -115,15 +125,22 @@ IEC104Server::createTLSConfiguration()
 
             for (std::string& remoteCert : m_config->GetRemoteCertificates())
             {
-                string remoteCertFile = certificateStore + remoteCert;
+                bool isPemRemoteCertificate = remoteCert.rfind(".pem") == remoteCert.size() - 4;
+
+                string remoteCertFile;
+
+                if(isPemRemoteCertificate)
+                    remoteCertFile = certificateStorePem + remoteCert;
+                else
+                    remoteCertFile = certificateStore + remoteCert;
 
                 if (access(remoteCertFile.c_str(), R_OK) == 0) {
                     if (TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, remoteCertFile.c_str()) == false) {
-                        Logger::getLogger()->warn("Failed to load remote certificate file: %s -> ignore certificate", remoteCertFile.c_str()); //LCOV_EXCL_LINE
+                        Logger::getLogger()->warn("Failed to load remote certificate file: %s -> ignore certificate", remoteCertFile.c_str());
                     }
                 }
                 else {
-                    Logger::getLogger()->warn("Failed to access remote certificate file: %s -> ignore certificate", remoteCertFile.c_str()); //LCOV_EXCL_LINE
+                    Logger::getLogger()->warn("Failed to access remote certificate file: %s -> ignore certificate", remoteCertFile.c_str());
                 }
 
             }
@@ -137,15 +154,22 @@ IEC104Server::createTLSConfiguration()
 
             for (std::string& caCert : m_config->GetCaCertificates())
             {
-                string caCertFile = certificateStore + caCert;
+                bool isPemCaCertificate = caCert.rfind(".pem") == caCert.size() - 4;
+
+                string caCertFile;
+
+                if(isPemCaCertificate)
+                    caCertFile = certificateStorePem + caCert;
+                else
+                    caCertFile = certificateStore + caCert;
 
                 if (access(caCertFile.c_str(), R_OK) == 0) {
                     if (TLSConfiguration_addCACertificateFromFile(tlsConfig, caCertFile.c_str()) == false) {
-                        Logger::getLogger()->warn("Failed to load CA certificate file: %s -> ignore certificate", caCertFile.c_str()); //LCOV_EXCL_LINE
+                        Logger::getLogger()->warn("Failed to load CA certificate file: %s -> ignore certificate", caCertFile.c_str());
                     }
                 }
                 else {
-                    Logger::getLogger()->warn("Failed to access CA certificate file: %s -> ignore certificate", caCertFile.c_str()); //LCOV_EXCL_LINE
+                    Logger::getLogger()->warn("Failed to access CA certificate file: %s -> ignore certificate", caCertFile.c_str());
                 }
 
             }
@@ -193,9 +217,9 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
     {
         CS104_Slave_setLocalPort(m_slave, m_config->TcpPort());
 
-        m_log->info("TCP/IP parameters:"); //LCOV_EXCL_LINE 
-        m_log->info("  TCP port: %i", m_config->TcpPort()); //LCOV_EXCL_LINE 
-        
+        m_log->info("TCP/IP parameters:"); //LCOV_EXCL_LINE
+        m_log->info("  TCP port: %i", m_config->TcpPort()); //LCOV_EXCL_LINE
+
         if (m_config->bindOnIp()) {
             CS104_Slave_setLocalAddress(m_slave, m_config->GetLocalIP());
             m_log->info("  IP address: %s", m_config->GetLocalIP()); //LCOV_EXCL_LINE
@@ -264,7 +288,7 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
         m_log->info("CS104 server initialized"); //LCOV_EXCL_LINE
     }
     else {
-        m_log->error("Failed to create CS104 server instance"); //LCOV_EXCL_LINE 
+        m_log->error("Failed to create CS104 server instance"); //LCOV_EXCL_LINE
     }
 }
 
@@ -275,12 +299,12 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
 void
 IEC104Server::configure(const ConfigCategory* config)
 {
-    m_log->info("configure called"); //LCOV_EXCL_LINE 
+    m_log->info("configure called"); //LCOV_EXCL_LINE
 
     if (config->itemExists("name"))
-        m_name = config->getValue("name"); //LCOV_EXCL_LINE 
+        m_name = config->getValue("name"); //LCOV_EXCL_LINE
     else
-        m_log->error("Missing name in configuration"); //LCOV_EXCL_LINE 
+        m_log->error("Missing name in configuration"); //LCOV_EXCL_LINE
 
     if (config->itemExists("protocol_stack") == false) {
         m_log->error("Missing protocol configuration"); //LCOV_EXCL_LINE
@@ -312,7 +336,7 @@ void
 IEC104Server::registerControl(int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...))
 {
     m_oper = operation;
-    
+
     m_log->warn("RegisterControl is called"); //LCOV_EXCL_LINE
 }
 
@@ -322,7 +346,7 @@ IEC104Server::requestSouthConnectionStatus()
     if (m_oper) {
         m_log->warn("Send request_connection_status operation"); //LCOV_EXCL_LINE
 
-        char* parameters[1]; 
+        char* parameters[1];
         char* names[1];
 
         names[0] = (char*)"desc";
@@ -397,7 +421,7 @@ IEC104Server::_monitoringThread()
 
             if (outstandingCommand->hasTimedOut(currentTime)) {
                 m_log->warn("command %i:%i (type: %i) timeout", outstandingCommand->CA(), outstandingCommand->IOA(), outstandingCommand->TypeId()); //LCOV_EXCL_LINE
-         
+
                 it = m_outstandingCommands.erase(it);
 
                 delete outstandingCommand;
@@ -414,7 +438,7 @@ IEC104Server::_monitoringThread()
 
     if (serverRunning) {
         CS104_Slave_stop(m_slave);
-        serverRunning = false; 
+        serverRunning = false;
     }
 }
 
@@ -496,7 +520,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
             }
 
             break; //LCOV_EXCL_LINE
- 
+
         case M_ME_NB_1: /* scaled value */
         case M_ME_TE_1:
             {
@@ -1170,7 +1194,7 @@ IEC104Server::updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPl
             }
 
             m_log->warn("south gi status for %s changed to %s", southPluginMonitor->GetAssetName().c_str(), giStatusValue.c_str()); //LCOV_EXCL_LINE
-        
+
             southPluginMonitor->SetGiStatus(giStatus);
         }
     }
@@ -1199,7 +1223,7 @@ IEC104Server::send(const vector<Reading*>& readings)
             if (dp->getName() == "south_event") {
 
                 m_log->warn("Receive south_event"); //LCOV_EXCL_LINE
-                
+
                 // check if we know the south plugin
                 for (auto southPluginMonitor : m_config->GetMonitoredSouthPlugins()) {
                     if (assetName == southPluginMonitor->GetAssetName()) {
@@ -1377,7 +1401,7 @@ void IEC104Server::printCP56Time2a(CP56Time2a time)
         CP56Time2a_getYear(time) + 2000);
 }
 
-//LCOV_EXCL_START 
+//LCOV_EXCL_START
 /**
  * Callback handler to log sent or received messages (optional)
  *
@@ -1390,9 +1414,9 @@ void IEC104Server::printCP56Time2a(CP56Time2a time)
 void
 IEC104Server::rawMessageHandler(void* parameter,
                                      IMasterConnection connection, uint8_t* msg,
-                                     int msgSize, bool sent) 
-                                    
-{ 
+                                     int msgSize, bool sent)
+
+{
     if (sent)
         Logger::getLogger()->debug("SEND: ");
     else
@@ -1404,7 +1428,7 @@ IEC104Server::rawMessageHandler(void* parameter,
         Logger::getLogger()->debug("%02x ", msg[i]);
     }
 }
-//LCOV_EXCL_STOP 
+//LCOV_EXCL_STOP
 
 /**
  * Callback handler for clock synchronization
@@ -1709,7 +1733,7 @@ IEC104Server::checkIfCmdTimeIsValid(int typeId, InformationObject io)
         case C_SC_TA_1:
             cmdTime = SingleCommandWithCP56Time2a_getTimestamp((SingleCommandWithCP56Time2a)io);
             break; //LCOV_EXCL_LINE
-            
+
         case C_DC_TA_1:
             cmdTime = DoubleCommandWithCP56Time2a_getTimestamp((DoubleCommandWithCP56Time2a)io);
             break; //LCOV_EXCL_LINE
@@ -1830,7 +1854,7 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                 }
                                 else {
                                     self->m_log->warn("Command not accepted"); //LCOV_EXCL_LINE
-                                    CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID); 
+                                    CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
                                 }
                             }
                             else {
@@ -1912,21 +1936,21 @@ IEC104Server::connectionEventHandler(void* parameter,
     if (event == CS104_CON_EVENT_CONNECTION_OPENED)
     {
         Logger::getLogger()->info("Connection opened (%s)", ipAddrBuf); //LCOV_EXCL_LINE
-        printf("Connection opened from %s\n", ipAddrBuf); //LCOV_EXCL_LINE 
+        printf("Connection opened from %s\n", ipAddrBuf); //LCOV_EXCL_LINE
     }
     else if (event == CS104_CON_EVENT_CONNECTION_CLOSED)
     {
-        Logger::getLogger()->info("Connection closed (%s)", ipAddrBuf);//LCOV_EXCL_LINE 
+        Logger::getLogger()->info("Connection closed (%s)", ipAddrBuf);//LCOV_EXCL_LINE
         printf("Connection closed from %s\n", ipAddrBuf);//LCOV_EXCL_LINE
         self->removeOutstandingCommands(con);
     }
     else if (event == CS104_CON_EVENT_ACTIVATED)
     {
-        Logger::getLogger()->info("Connection activated (%s)", ipAddrBuf);//LCOV_EXCL_LINE 
+        Logger::getLogger()->info("Connection activated (%s)", ipAddrBuf);//LCOV_EXCL_LINE
     }
     else if (event == CS104_CON_EVENT_DEACTIVATED)
     {
-        Logger::getLogger()->info("Connection deactivated (%s)", ipAddrBuf);//LCOV_EXCL_LINE 
+        Logger::getLogger()->info("Connection deactivated (%s)", ipAddrBuf);//LCOV_EXCL_LINE
         self->removeOutstandingCommands(con);
     }
 }
