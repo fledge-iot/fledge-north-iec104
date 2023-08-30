@@ -627,39 +627,43 @@ TEST_F(InterrogationHandlerTest, InterrogationHandlerBroadcastCA)
         ASSERT_EQ(2, asdu->numberOfIOs);
         ASSERT_EQ(M_DP_NA_1, asdu->typeId);
 
-        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 9));
+        /* NOTE: M_DP_TB_1 data is put into the same ASDU as M_DP_NA_1 
+           in general during interrogation requests all data types are sent without timestamp! */
+
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs,9));
+
+        ASSERT_EQ(145, asdu->ca);
+        ASSERT_EQ(CS101_COT_INTERROGATED_BY_STATION, asdu->cot);
+        //ASSERT_EQ(2, asdu->numberOfIOs);
+        ASSERT_EQ(1, asdu->numberOfIOs);
+        ASSERT_EQ(M_ME_NA_1, asdu->typeId);
+
+         asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 10));
 
         ASSERT_EQ(145, asdu->ca);
         ASSERT_EQ(CS101_COT_INTERROGATED_BY_STATION, asdu->cot);
         ASSERT_EQ(1, asdu->numberOfIOs);
-        ASSERT_EQ(M_DP_TB_1, asdu->typeId);
-
-         asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs,10));
-
-        ASSERT_EQ(145, asdu->ca);
-        ASSERT_EQ(CS101_COT_INTERROGATED_BY_STATION, asdu->cot);
-        ASSERT_EQ(2, asdu->numberOfIOs);
-        ASSERT_EQ(M_ME_TD_1, asdu->typeId);
+        ASSERT_EQ(M_ME_NB_1, asdu->typeId);
 
          asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 11));
 
         ASSERT_EQ(145, asdu->ca);
         ASSERT_EQ(CS101_COT_INTERROGATED_BY_STATION, asdu->cot);
         ASSERT_EQ(1, asdu->numberOfIOs);
-        ASSERT_EQ(M_ME_TE_1, asdu->typeId);
+        ASSERT_EQ(M_ME_NC_1, asdu->typeId);
 
-         asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 12));
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 12));
 
         ASSERT_EQ(145, asdu->ca);
         ASSERT_EQ(CS101_COT_INTERROGATED_BY_STATION, asdu->cot);
-        ASSERT_EQ(1, asdu->numberOfIOs);
-        ASSERT_EQ(M_ME_TF_1, asdu->typeId);
+        ASSERT_EQ(2, asdu->numberOfIOs);
+        ASSERT_EQ(M_ST_NA_1, asdu->typeId);
 
-         asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 13));
+        asdu = (struct sASDU_testInfo*)LinkedList_getData(LinkedList_get(receivedASDUs, 13));
 
         ASSERT_EQ(145, asdu->ca);
         ASSERT_EQ(CS101_COT_ACTIVATION_TERMINATION, asdu->cot);
-        ASSERT_EQ(2, asdu->numberOfIOs);
+        ASSERT_EQ(1, asdu->numberOfIOs);
         ASSERT_EQ(C_IC_NA_1, asdu->typeId);
     }
     else {
