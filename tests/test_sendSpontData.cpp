@@ -136,6 +136,16 @@ static string exchanged_data = QUOTE({
                     ]
                 },
                 {
+                    "label":"TS6",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-1701",
+                          "typeid":"M_ST_NA_1"
+                       }
+                    ]
+                },
+                {
                     "label":"TM1",
                     "protocols":[
                        {
@@ -1032,6 +1042,130 @@ TEST_F(SendSpontDataTest, CreateReading_differentSpontaneousCOTs)
     Thread_sleep(500);
 
     ASSERT_EQ(5, receivedAsdu.size());
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_ST_NA_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    dataobjects->push_back(createDataObject("M_ST_NA_1", 45, 1701, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ST_NA_1", 45, 1703, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ST_NA_1", 45, 1947, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+
+    Reading* reading = new Reading(std::string("TS1"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(1000);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+    
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_ST_NA_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(1701, InformationObject_getObjectAddress(io));
+
+    ASSERT_EQ(true, StepPositionInformation_getValue ((StepPositionInformation)io));
+
+    InformationObject_destroy(io);
+
+    asdu = receivedAsdu.at(1);
+
+    ASSERT_EQ(M_SP_NA_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(1703, InformationObject_getObjectAddress(io));
+
+    ASSERT_EQ(false, StepPositionInformation_getValue ((StepPositionInformation)io));
+
+    InformationObject_destroy(io);
+
+    delete reading;
+
+    delete dataobjects;
+}
+
+TEST_F(SendSpontDataTest, CreateReading_M_ST_TB_1)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    CS104_Connection_setASDUReceivedHandler(connection, test1_ASDUReceivedHandler, this);
+
+    bool result = CS104_Connection_connect(connection);
+    ASSERT_TRUE(result);
+
+    CS104_Connection_sendStartDT(connection);
+
+    auto* dataobjects = new vector<Datapoint*>;
+
+    struct sCP56Time2a ts;
+
+    uint64_t timeVal = Hal_getTimeInMs();
+
+    CP56Time2a_createFromMsTimestamp(&ts, timeVal);
+    CP56Time2a_setInvalid(&ts, true);
+
+
+    dataobjects->push_back(createDataObject("M_ST_TB_1", 45, 1701, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+    
+
+    Reading* reading = new Reading(std::string("TS1"), *dataobjects);
+
+    vector<Reading*> readings;
+
+    readings.push_back(reading);
+
+    iec104Server->send(readings);
+
+    Thread_sleep(1000);
+
+    ASSERT_EQ(1, receivedAsdu.size());
+
+    InformationObject io;
+    
+    CS101_ASDU asdu = receivedAsdu.at(0);
+
+    ASSERT_EQ(M_ST_TB_1, CS101_ASDU_getTypeID(asdu));
+    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
+    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
+
+    io = CS101_ASDU_getElement(asdu, 0);
+    ASSERT_EQ(1701, InformationObject_getObjectAddress(io));
+    CP56Time2a rcvdTimestamp = StepPositionWithCP56Time2a_getTimestamp((StepPositionWithCP56Time2a)io);
+
+    ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+
+
+    InformationObject_destroy(io);
 
     delete reading;
 
