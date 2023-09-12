@@ -6,6 +6,8 @@
 #include "rapidjson/error/en.h"
 #include <map>
 #include <vector>
+#include <sstream>
+#include <algorithm>
 
 #include "iec104_datapoint.hpp"
 #include <lib60870/cs104_slave.h>

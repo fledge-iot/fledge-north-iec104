@@ -121,7 +121,7 @@ private:
     static bool clockSyncHandler(void* parameter, IMasterConnection connection,
                                  CS101_ASDU asdu, CP56Time2a newTime);
 
-    void sendInterrogationResponse(IMasterConnection connection, CS101_ASDU asdu, int ca);
+    void sendInterrogationResponse(IMasterConnection connection, CS101_ASDU asdu, int ca, int qoi);
 
     static bool interrogationHandler(void* parameter,
                                      IMasterConnection connection,

@@ -16,8 +16,8 @@ class IEC104DataPoint
 {
 public:
 
-    IEC104DataPoint(std::string label, int ca, int ioa, int type, bool isCommand);
-    ~IEC104DataPoint() {};
+    IEC104DataPoint(std::string label, int ca, int ioa, int type, bool isCommand, int gi_groups);
+    ~IEC104DataPoint(){};
 
     static bool isSupportedCommandType(int typeId);
     static bool isCommandWithTimestamp(int typeId);
@@ -39,6 +39,7 @@ public:
     int m_type;
     bool m_isCommand;
     std::string m_label;
+    int m_gi_groups;
 
     int terminationTimeout; /* termination timeout for commands in ms */
 

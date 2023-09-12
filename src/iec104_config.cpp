@@ -13,17 +13,12 @@ using namespace rapidjson;
 #define JSON_PROT_NAME "name"
 #define JSON_PROT_ADDR "address"
 #define JSON_PROT_TYPEID "typeid"
+#define JSON_PROT_GI_GROUPS "gi_groups"
 
 IEC104Config::IEC104Config()
 {
     m_exchangeConfigComplete = false;
     m_protocolConfigComplete = false;
-}
-
-IEC104Config::IEC104Config(const string& protocolConfig, const string& exchangeConfig)
-{
-    importProtocolConfig(protocolConfig);
-    importExchangeConfig(exchangeConfig);
 }
 
 void
@@ -581,6 +576,64 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
                 if (!protocol.HasMember(JSON_PROT_ADDR) || !protocol[JSON_PROT_ADDR].IsString()) return;
                 if (!protocol.HasMember(JSON_PROT_TYPEID) || !protocol[JSON_PROT_TYPEID].IsString()) return;
 
+                int32_t gi_groups = 0;
+
+                if (protocol.HasMember(JSON_PROT_GI_GROUPS)) {
+
+                    if(protocol[JSON_PROT_GI_GROUPS].IsString()){
+
+                        string gi_groups_member = protocol[JSON_PROT_GI_GROUPS].GetString();
+
+                        if(gi_groups_member == "")
+                          gi_groups = 0; 
+
+                        else{
+                        
+                            stringstream ss(gi_groups_member);
+
+                            while (ss.good()){
+
+                                string substr;
+                                getline( ss, substr, ',' );
+
+                                int group;
+
+                                if (substr == "station")    
+                                    group = 0;
+
+                                else if (all_of(substr.begin(), substr.end(), ::isdigit)){
+                                    group = stoi(substr);
+
+                                    if(group <= 0 || group >= 17){
+                                        Logger::getLogger()->warn("gi_groups value out of range, defaulting to station.");
+                                        gi_groups = 1;   
+                                        break;
+                                    }
+                                }
+
+                                else {
+                                    Logger::getLogger()->warn("gi_groups value invalid, defaulting to station.");
+                                    gi_groups = 1;   
+                                    break;
+                                }
+
+                                gi_groups |= (1 << group); 
+
+                            }  
+                        }
+                    }
+                    else {
+                        Logger::getLogger()->warn("gi_groups value is of invalid type, defaulting to station.");
+                        gi_groups = 1;   
+                        break;
+                    } 
+
+                }
+
+                else gi_groups = 1;
+
+                printf("\n GI GROUPS = %i\n", gi_groups);    
+
                 string address = protocol[JSON_PROT_ADDR].GetString();
                 string typeIdStr = protocol[JSON_PROT_TYPEID].GetString();
 
@@ -605,7 +658,7 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
                     bool isMonitoring = IEC104DataPoint::isSupportedMonitoringType(typeId);
 
                     if (isCommand || isMonitoring) {
-                        IEC104DataPoint* newDp = new IEC104DataPoint(label, ca, ioa, dataType, isCommand);
+                        IEC104DataPoint* newDp = new IEC104DataPoint(label, ca, ioa, dataType, isCommand, gi_groups);
                
                         (*m_exchangeDefinitions)[ca][ioa] = newDp;
                     }
