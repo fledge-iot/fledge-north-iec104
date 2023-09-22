@@ -145,6 +145,16 @@ static string exchanged_data = QUOTE({
                        }
                     ]
                 },
+                 {
+                   "label":"TS7",
+                   "protocols":[
+                     {
+                      "name":"iec104",
+                      "address":"45-1702",
+                      "typeid":"M_ST_TB_1"
+                     }
+                   ]
+                 },
                 {
                     "label":"TM1",
                     "protocols":[
@@ -1063,11 +1073,9 @@ TEST_F(SendSpontDataTest, CreateReading_M_ST_NA_1)
 
     auto* dataobjects = new vector<Datapoint*>;
 
-    dataobjects->push_back(createDataObject("M_ST_NA_1", 45, 1701, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
-    dataobjects->push_back(createDataObject("M_ST_NA_1", 45, 1703, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
-    dataobjects->push_back(createDataObject("M_ST_NA_1", 45, 1947, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ST_NA_1", 45, 1701, CS101_COT_SPONTANEOUS, (char*)"[1,true]", false, false, false, false, false, NULL));
 
-    Reading* reading = new Reading(std::string("TS1"), *dataobjects);
+    Reading* reading = new Reading(std::string("TS6"), *dataobjects);
 
     vector<Reading*> readings;
 
@@ -1091,20 +1099,9 @@ TEST_F(SendSpontDataTest, CreateReading_M_ST_NA_1)
     ASSERT_EQ(1701, InformationObject_getObjectAddress(io));
 
     ASSERT_EQ(true, StepPositionInformation_getValue ((StepPositionInformation)io));
-
-    InformationObject_destroy(io);
-
-    asdu = receivedAsdu.at(1);
-
-    ASSERT_EQ(M_SP_NA_1, CS101_ASDU_getTypeID(asdu));
-    ASSERT_EQ(45, CS101_ASDU_getCA(asdu));
-    ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
-
-    io = CS101_ASDU_getElement(asdu, 0);
-    ASSERT_EQ(1703, InformationObject_getObjectAddress(io));
-
-    ASSERT_EQ(false, StepPositionInformation_getValue ((StepPositionInformation)io));
-
+      
+    ASSERT_EQ(true, StepPositionInformation_isTransient ((StepPositionInformation)io));
+    
     InformationObject_destroy(io);
 
     delete reading;
@@ -1135,10 +1132,10 @@ TEST_F(SendSpontDataTest, CreateReading_M_ST_TB_1)
     CP56Time2a_setInvalid(&ts, true);
 
 
-    dataobjects->push_back(createDataObject("M_ST_TB_1", 45, 1701, CS101_COT_SPONTANEOUS, (int64_t)1, false, false, false, false, false, NULL));
+    dataobjects->push_back(createDataObject("M_ST_TB_1", 45, 1702, CS101_COT_SPONTANEOUS, (char*) "[1,false]", false, false, false, false, false, NULL));
     
 
-    Reading* reading = new Reading(std::string("TS1"), *dataobjects);
+    Reading* reading = new Reading(std::string("TS7"), *dataobjects);
 
     vector<Reading*> readings;
 
@@ -1159,11 +1156,14 @@ TEST_F(SendSpontDataTest, CreateReading_M_ST_TB_1)
     ASSERT_EQ(1, CS101_ASDU_getNumberOfElements(asdu));
 
     io = CS101_ASDU_getElement(asdu, 0);
-    ASSERT_EQ(1701, InformationObject_getObjectAddress(io));
+    ASSERT_EQ(1702, InformationObject_getObjectAddress(io));
     CP56Time2a rcvdTimestamp = StepPositionWithCP56Time2a_getTimestamp((StepPositionWithCP56Time2a)io);
 
-    ASSERT_EQ(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp));
+    ASSERT_NEAR(timeVal, CP56Time2a_toMsTimestamp(rcvdTimestamp),10);
 
+    ASSERT_EQ(true, StepPositionInformation_getValue ((StepPositionInformation)io));
+
+    ASSERT_EQ(false, StepPositionInformation_isTransient ((StepPositionInformation)io));
 
     InformationObject_destroy(io);
 

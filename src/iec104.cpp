@@ -495,8 +495,8 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
                 if (value && (value->getType() == DatapointValue::dataTagType::T_STRING)) {
                     int wtrVal;
                     int transInd;
-                    std::string str = value->getData().toString();
-                    std::string cleaned_str = str.substr(2, str.length() - 4);
+                    std::string str = value->toStringValue();
+                    std::string cleaned_str = str.substr(1, str.length() - 2);
                     std::size_t commaPos = cleaned_str.find(',');
                     if(commaPos != std::string::npos) {
                         std::string numStr = cleaned_str.substr(0, commaPos);
