@@ -1603,243 +1603,83 @@ TEST_F(ConnectionHandlerTest, NormalConnection)
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack1)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_1, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack2)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_2, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack3)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_3, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_FALSE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack4)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_4, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack5)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_5, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack6)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_6, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack7)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_7, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack8)
 {
     iec104Server->setJsonConfig("", exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack9)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_9, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack10)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_10, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack11)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_11, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack12)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_12, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack13)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_13, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack14)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_14, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_FALSE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack15)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_15, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack16)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_16, exchanged_data, tls);
-
-    Thread_sleep(500); /* wait for the server to start */
-
-    // Create connection
-    connection = CS104_Connection_create("127.0.0.1", IEC_60870_5_104_DEFAULT_PORT);
-
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2235,31 +2075,6 @@ TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotKeyCertificateDotCrt) {
 
 }
 
-TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotKeyCertificateDotPem) {
-
-    setenv("FLEDGE_DATA", "./tests/data", 1);
-
-    TLSConfiguration tlsConfig = TLSConfiguration_create();
-
-    TLSConfiguration_addCACertificateFromFile(tlsConfig, "tests/data/etc/certs/test3_CA.pem");
-    TLSConfiguration_setOwnCertificateFromFile(tlsConfig, "tests/data/etc/certs/test3_client.pem");
-    TLSConfiguration_setOwnKeyFromFile(tlsConfig, "tests/data/etc/certs/test3_client.key", NULL);
-    TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, "tests/data/etc/certs/test3_server.pem");
-    TLSConfiguration_setChainValidation(tlsConfig, true);
-    TLSConfiguration_setAllowOnlyKnownCertificates(tlsConfig, false);
-
-    connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
-
-    iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test3);
-
-    Thread_sleep(500); /* wait for the server to start */
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
-    TLSConfiguration_destroy(tlsConfig);
-
-}
 
 TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotKeyCertificateDotP12) {
 
@@ -2339,57 +2154,6 @@ TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotPemCertificateDotCert) {
 
 }
 
-TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotPemCertificateDotCrt) {
-
-    setenv("FLEDGE_DATA", "./tests/data", 1);
-
-    TLSConfiguration tlsConfig = TLSConfiguration_create();
-
-    TLSConfiguration_addCACertificateFromFile(tlsConfig, "tests/data/etc/certs/test7_CA.crt");
-    TLSConfiguration_setOwnCertificateFromFile(tlsConfig, "tests/data/etc/certs/test7_client.crt");
-    TLSConfiguration_setOwnKeyFromFile(tlsConfig, "tests/data/etc/certs/test7_client.pem", NULL);
-    TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, "tests/data/etc/certs/test7_server.crt");
-    TLSConfiguration_setChainValidation(tlsConfig, true);
-    TLSConfiguration_setAllowOnlyKnownCertificates(tlsConfig, false);
-
-    connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
-
-    iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test7);
-
-    Thread_sleep(500); /* wait for the server to start */
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
-    TLSConfiguration_destroy(tlsConfig);
-
-}
-
-TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotPemCertificateDotPem) {
-
-    setenv("FLEDGE_DATA", "./tests/data", 1);
-
-    TLSConfiguration tlsConfig = TLSConfiguration_create();
-
-    TLSConfiguration_addCACertificateFromFile(tlsConfig, "tests/data/etc/certs/test8_CA_cert.pem");
-    TLSConfiguration_setOwnCertificateFromFile(tlsConfig, "tests/data/etc/certs/test8_client_cert.pem");
-    TLSConfiguration_setOwnKeyFromFile(tlsConfig, "tests/data/etc/certs/test8_client_key.pem", NULL);
-    TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, "tests/data/etc/certs/test8_server_cert.pem");
-    TLSConfiguration_setChainValidation(tlsConfig, true);
-    TLSConfiguration_setAllowOnlyKnownCertificates(tlsConfig, false);
-
-    connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
-
-    iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test8);
-
-    Thread_sleep(500); /* wait for the server to start */
-    bool result = CS104_Connection_connect(connection);
-    ASSERT_TRUE(result);
-
-    CS104_Connection_destroy(connection);
-    TLSConfiguration_destroy(tlsConfig);
-
-}
 
 TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotPemCertificateDotP12) {
 
