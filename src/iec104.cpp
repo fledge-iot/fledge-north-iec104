@@ -56,6 +56,7 @@ IEC104Server::m_getDataPoint(int ca, int ioa, int typeId)
 bool
 IEC104Server::createTLSConfiguration()
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::createTLSConfiguration -";
     TLSConfiguration tlsConfig = TLSConfiguration_create();
 
     if (tlsConfig)
@@ -66,7 +67,7 @@ IEC104Server::createTLSConfiguration()
         string certificateStorePem = getDataDir() + string("/etc/certs/pem/");
 
         if (m_config->GetOwnCertificate().length() == 0 || m_config->GetPrivateKey().length() == 0) {
-            Iec104Utility::log_error("No private key and/or certificate configured for client");
+            Iec104Utility::log_error("%s No private key and/or certificate configured for client", beforeLog.c_str());
             tlsConfigOk = false;
         }
 
@@ -86,13 +87,13 @@ IEC104Server::createTLSConfiguration()
             if (access(ownCertFile.c_str(), R_OK) == 0) {
 
                 if (TLSConfiguration_setOwnCertificateFromFile(tlsConfig, ownCertFile.c_str()) == false) {
-                    Iec104Utility::log_error("Failed to load own certificate from file: %s", ownCertFile.c_str());
+                    Iec104Utility::log_error("%s Failed to load own certificate from file: %s", beforeLog.c_str(), ownCertFile.c_str());
                     tlsConfigOk = false;
                 }
 
             }
             else {
-                Iec104Utility::log_error("Failed to access own certificate file: %s", ownCertFile.c_str());
+                Iec104Utility::log_error("%s Failed to access own certificate file: %s", beforeLog.c_str(), ownCertFile.c_str());
                 tlsConfigOk = false;
             }
         }
@@ -104,13 +105,13 @@ IEC104Server::createTLSConfiguration()
             if (access(privateKeyFile.c_str(), R_OK) == 0) {
 
                 if (TLSConfiguration_setOwnKeyFromFile(tlsConfig, privateKeyFile.c_str(), NULL) == false) {
-                    Iec104Utility::log_error("Failed to load private key from file: %s", privateKeyFile.c_str());
+                    Iec104Utility::log_error("%s Failed to load private key from file: %s", beforeLog.c_str(), privateKeyFile.c_str());
                     tlsConfigOk = false;
                 }
 
             }
             else {
-                Iec104Utility::log_error("Failed to access private key file: %s", privateKeyFile.c_str());
+                Iec104Utility::log_error("%s Failed to access private key file: %s", beforeLog.c_str(), privateKeyFile.c_str());
                 tlsConfigOk = false;
             }
         }
@@ -131,11 +132,13 @@ IEC104Server::createTLSConfiguration()
 
                 if (access(remoteCertFile.c_str(), R_OK) == 0) {
                     if (TLSConfiguration_addAllowedCertificateFromFile(tlsConfig, remoteCertFile.c_str()) == false) {
-                        Iec104Utility::log_warn("Failed to load remote certificate file: %s -> ignore certificate", remoteCertFile.c_str());
+                        Iec104Utility::log_warn("%s Failed to load remote certificate file: %s -> ignore certificate",
+                                                beforeLog.c_str(), remoteCertFile.c_str());
                     }
                 }
                 else {
-                    Iec104Utility::log_warn("Failed to access remote certificate file: %s -> ignore certificate", remoteCertFile.c_str());
+                    Iec104Utility::log_warn("%s Failed to access remote certificate file: %s -> ignore certificate", beforeLog.c_str(),
+                                            remoteCertFile.c_str());
                 }
 
             }
@@ -160,11 +163,13 @@ IEC104Server::createTLSConfiguration()
 
                 if (access(caCertFile.c_str(), R_OK) == 0) {
                     if (TLSConfiguration_addCACertificateFromFile(tlsConfig, caCertFile.c_str()) == false) {
-                        Iec104Utility::log_warn("Failed to load CA certificate file: %s -> ignore certificate", caCertFile.c_str());
+                        Iec104Utility::log_warn("%s Failed to load CA certificate file: %s -> ignore certificate", beforeLog.c_str(),
+                                                caCertFile.c_str());
                     }
                 }
                 else {
-                    Iec104Utility::log_warn("Failed to access CA certificate file: %s -> ignore certificate", caCertFile.c_str());
+                    Iec104Utility::log_warn("%s Failed to access CA certificate file: %s -> ignore certificate", beforeLog.c_str(),
+                                            caCertFile.c_str());
                 }
 
             }
@@ -193,6 +198,7 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
                                 const std::string& dataExchangeConfig,
                                 const std::string& tlsConfig)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::setJsonConfig -";
     m_config->importExchangeConfig(dataExchangeConfig);
     m_config->importProtocolConfig(stackConfig);
     m_config->importTlsConfig(tlsConfig);
@@ -212,12 +218,12 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
     {
         CS104_Slave_setLocalPort(m_slave, m_config->TcpPort());
 
-        Iec104Utility::log_info("TCP/IP parameters:"); //LCOV_EXCL_LINE
-        Iec104Utility::log_info("  TCP port: %i", m_config->TcpPort()); //LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s TCP/IP parameters:", beforeLog.c_str()); //LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s  TCP port: %i", beforeLog.c_str(), m_config->TcpPort()); //LCOV_EXCL_LINE
 
         if (m_config->bindOnIp()) {
             CS104_Slave_setLocalAddress(m_slave, m_config->GetLocalIP());
-            Iec104Utility::log_info("  IP address: %s", m_config->GetLocalIP()); //LCOV_EXCL_LINE
+            Iec104Utility::log_info("%s  IP address: %s", beforeLog.c_str(), m_config->GetLocalIP()); //LCOV_EXCL_LINE
         }
 
         CS104_APCIParameters apciParams =
@@ -230,13 +236,13 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
         apciParams->t2 = m_config->T2();
         apciParams->t3 = m_config->T3();
 
-        Iec104Utility::log_info("APCI parameters:");
-        Iec104Utility::log_info("  t0: %i", apciParams->t0); //LCOV_EXCL_LINE
-        Iec104Utility::log_info("  t1: %i", apciParams->t1); //LCOV_EXCL_LINE
-        Iec104Utility::log_info("  t2: %i", apciParams->t2); //LCOV_EXCL_LINE
-        Iec104Utility::log_info("  t3: %i", apciParams->t3); //LCOV_EXCL_LINE
-        Iec104Utility::log_info("  k: %i", apciParams->k); //LCOV_EXCL_LINE
-        Iec104Utility::log_info("  w: %i", apciParams->w); //LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s APCI parameters:", beforeLog.c_str());
+        Iec104Utility::log_info("%s  t0: %i", beforeLog.c_str(), apciParams->t0); //LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s  t1: %i", beforeLog.c_str(), apciParams->t1); //LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s  t2: %i", beforeLog.c_str(), apciParams->t2); //LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s  t3: %i", beforeLog.c_str(), apciParams->t3); //LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s  k: %i", beforeLog.c_str(), apciParams->k); //LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s  w: %i", beforeLog.c_str(), apciParams->w); //LCOV_EXCL_LINE
 
         CS101_AppLayerParameters appLayerParams =
             CS104_Slave_getAppLayerParameters(m_slave);
@@ -280,10 +286,10 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
         m_started = true;
         m_monitoringThread = new std::thread(&IEC104Server::_monitoringThread, this);
 
-        Iec104Utility::log_info("CS104 server initialized"); //LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s CS104 server initialized", beforeLog.c_str()); //LCOV_EXCL_LINE
     }
     else {
-        Iec104Utility::log_error("Failed to create CS104 server instance"); //LCOV_EXCL_LINE
+        Iec104Utility::log_error("%s Failed to create CS104 server instance", beforeLog.c_str()); //LCOV_EXCL_LINE
     }
 }
 
@@ -294,20 +300,21 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
 void
 IEC104Server::configure(const ConfigCategory* config)
 {
-    Iec104Utility::log_info("configure called"); //LCOV_EXCL_LINE
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::configure -";
+    Iec104Utility::log_info("%s configure called", beforeLog.c_str()); //LCOV_EXCL_LINE
 
     if (config->itemExists("name"))
         m_name = config->getValue("name"); //LCOV_EXCL_LINE
     else
-        Iec104Utility::log_error("Missing name in configuration"); //LCOV_EXCL_LINE
+        Iec104Utility::log_error("%s Missing name in configuration", beforeLog.c_str()); //LCOV_EXCL_LINE
 
     if (config->itemExists("protocol_stack") == false) {
-        Iec104Utility::log_error("Missing protocol configuration"); //LCOV_EXCL_LINE
+        Iec104Utility::log_error("%s Missing protocol configuration", beforeLog.c_str()); //LCOV_EXCL_LINE
         return;
     }
 
     if (config->itemExists("exchanged_data") == false) {
-        Iec104Utility::log_error("Missing exchange data configuration"); //LCOV_EXCL_LINE
+        Iec104Utility::log_error("%s Missing exchange data configuration", beforeLog.c_str()); //LCOV_EXCL_LINE
         return;
     }
 
@@ -318,7 +325,7 @@ IEC104Server::configure(const ConfigCategory* config)
     std::string tlsConfig = "";
 
     if (config->itemExists("tls_conf") == false) {
-        Iec104Utility::log_error("Missing TLS configuration"); //LCOV_EXCL_LINE
+        Iec104Utility::log_error("%s Missing TLS configuration", beforeLog.c_str()); //LCOV_EXCL_LINE
     }
     else {
         tlsConfig = config->getValue("tls_conf");
@@ -330,16 +337,19 @@ IEC104Server::configure(const ConfigCategory* config)
 void
 IEC104Server::registerControl(int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...))
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::registerControl -";
+
     m_oper = operation;
 
-    Iec104Utility::log_warn("RegisterControl is called"); //LCOV_EXCL_LINE
+    Iec104Utility::log_warn("%s RegisterControl is called", beforeLog.c_str()); //LCOV_EXCL_LINE
 }
 
 bool
 IEC104Server::requestSouthConnectionStatus()
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::requestSouthConnectionStatus -";
     if (m_oper) {
-        Iec104Utility::log_warn("Send request_connection_status operation"); //LCOV_EXCL_LINE
+        Iec104Utility::log_warn("%s Send request_connection_status operation", beforeLog.c_str()); //LCOV_EXCL_LINE
 
         char* parameters[1];
         char* names[1];
@@ -356,7 +366,7 @@ IEC104Server::requestSouthConnectionStatus()
         return true;
     }
     else {
-        Iec104Utility::log_warn("m_oper not set -> call registerControl");
+        Iec104Utility::log_warn("%s m_oper not set -> call registerControl", beforeLog.c_str());
 
         return false;
     }
@@ -365,6 +375,7 @@ IEC104Server::requestSouthConnectionStatus()
 void
 IEC104Server::_monitoringThread()
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::_monitoringThread -";
     bool southStatusRequested = false;
 
     bool serverRunning = false;
@@ -378,7 +389,7 @@ IEC104Server::_monitoringThread()
         if (m_config->GetMode() == IEC104Config::Mode::CONNECT_ALWAYS) {
             if (serverRunning == false) {
                 CS104_Slave_start(m_slave);
-                Iec104Utility::log_warn("Server started - mode: CONNECT_ALWAYS"); //LCOV_EXCL_LINE
+                Iec104Utility::log_warn("%s Server started - mode: CONNECT_ALWAYS", beforeLog.c_str()); //LCOV_EXCL_LINE
                 serverRunning = true;//LCOV_EXCL_LINE
             }
         }
@@ -386,14 +397,14 @@ IEC104Server::_monitoringThread()
             if (serverRunning == false) {
 
                 if (checkIfSouthConnected()) {
-                    Iec104Utility::log_warn("Server started - mode: CONNECT_IF_SOUTH_CONNX_STARTED"); //LCOV_EXCL_LINE
+                    Iec104Utility::log_warn("%s Server started - mode: CONNECT_IF_SOUTH_CONNX_STARTED", beforeLog.c_str()); //LCOV_EXCL_LINE
                     CS104_Slave_start(m_slave);
                     serverRunning = true;//LCOV_EXCL_LINE
                 }
             }
             else {
                 if (checkIfSouthConnected() == false) {
-                    Iec104Utility::log_warn("Server stopped - mode: CONNECT_IF_SOUTH_CONNX_STARTED"); //LCOV_EXCL_LINE
+                    Iec104Utility::log_warn("%s Server stopped - mode: CONNECT_IF_SOUTH_CONNX_STARTED", beforeLog.c_str()); //LCOV_EXCL_LINE
                     CS104_Slave_stop(m_slave);
                     serverRunning = false;//LCOV_EXCL_LINE
                 }
@@ -412,7 +423,7 @@ IEC104Server::_monitoringThread()
             IEC104OutstandingCommand* outstandingCommand = *it;
 
             if (outstandingCommand->hasTimedOut(currentTime)) {
-                Iec104Utility::log_warn("command %i:%i (type: %i) timeout", outstandingCommand->CA(), outstandingCommand->IOA(), outstandingCommand->TypeId()); //LCOV_EXCL_LINE
+                Iec104Utility::log_warn("%s command %i:%i (type: %i) timeout", beforeLog.c_str(), outstandingCommand->CA(), outstandingCommand->IOA(), outstandingCommand->TypeId()); //LCOV_EXCL_LINE
 
                 it = m_outstandingCommands.erase(it);
 
@@ -551,6 +562,7 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
 void
 IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmission cot, IEC60870_5_TypeID typeId)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::m_enqueueSpontDatapoint -";
     CS101_ASDU asdu = CS101_ASDU_create(CS104_Slave_getAppLayerParameters(m_slave), false, cot, 0, dp->m_ca, false, false);
 
     if (asdu)
@@ -632,7 +644,7 @@ IEC104Server::m_enqueueSpontDatapoint(IEC104DataPoint* dp, CS101_CauseOfTransmis
                 break; //LCOV_EXCL_LINE
 
             default:
-                Iec104Utility::log_error("Unsupported type ID %i", typeId);
+                Iec104Utility::log_error("%s Unsupported type ID %i", beforeLog.c_str(), typeId);
 
                 break; //LCOV_EXCL_LINE
         }
@@ -704,6 +716,7 @@ IEC104Server::addToOutstandingCommands(CS101_ASDU asdu, IMasterConnection connec
 void
 IEC104Server::removeOutstandingCommands(IMasterConnection connection)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::removeOutstandingCommands -";
     m_outstandingCommandsLock.lock();
 
     std::vector<IEC104OutstandingCommand*>::iterator it;
@@ -714,7 +727,8 @@ IEC104Server::removeOutstandingCommands(IMasterConnection connection)
 
         if (outstandingCommand->isSentFromConnection(connection))
         {
-            Iec104Utility::log_warn("Remove outstanding command to %i:%i while waiting for feedback", outstandingCommand->CA(), outstandingCommand->IOA()); //LCOV_EXCL_LINE
+            Iec104Utility::log_warn("%s Remove outstanding command to %i:%i while waiting for feedback", beforeLog.c_str(),
+                                    outstandingCommand->CA(), outstandingCommand->IOA()); //LCOV_EXCL_LINE
 
             it = m_outstandingCommands.erase(it);
 
@@ -751,6 +765,7 @@ IEC104Server::removeAllOutstandingCommands()
 void
 IEC104Server::handleActCon(int type, int ca, int ioa, bool isNegative)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::handleActCon -";
     m_outstandingCommandsLock.lock();
 
     std::vector<IEC104OutstandingCommand*>::iterator it;
@@ -765,7 +780,8 @@ IEC104Server::handleActCon(int type, int ca, int ioa, bool isNegative)
             if (outstandingCommand->isSelect()) {
                 m_outstandingCommands.erase(it);
 
-                Iec104Utility::log_info("Outstanding command %i:%i sent ACT-CON(select) -> remove", outstandingCommand->CA(), outstandingCommand->IOA()); //LCOV_EXCL_LINE
+                Iec104Utility::log_info("%s Outstanding command %i:%i sent ACT-CON(select) -> remove", beforeLog.c_str(),
+                                        outstandingCommand->CA(), outstandingCommand->IOA()); //LCOV_EXCL_LINE
 
                 delete outstandingCommand;
             }
@@ -780,6 +796,7 @@ IEC104Server::handleActCon(int type, int ca, int ioa, bool isNegative)
 void
 IEC104Server::handleActTerm(int type, int ca, int ioa, bool isNegative)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::handleActTerm -";
     m_outstandingCommandsLock.lock();
 
     std::vector<IEC104OutstandingCommand*>::iterator it;
@@ -792,7 +809,8 @@ IEC104Server::handleActTerm(int type, int ca, int ioa, bool isNegative)
         {
             outstandingCommand->sendActTerm(isNegative);
 
-            Iec104Utility::log_info("Outstanding command %i:%i sent ACT-TERM -> remove", outstandingCommand->CA(), outstandingCommand->IOA()); //LCOV_EXCL_LINE
+            Iec104Utility::log_info("%s Outstanding command %i:%i sent ACT-TERM -> remove", beforeLog.c_str(),
+                                    outstandingCommand->CA(), outstandingCommand->IOA()); //LCOV_EXCL_LINE
 
             m_outstandingCommands.erase(it);
 
@@ -820,8 +838,9 @@ enum CommandParameters{
 bool
 IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMasterConnection connection)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::forwardCommand -";
     if (!m_oper) {
-        Iec104Utility::log_error("No operation function available");
+        Iec104Utility::log_error("%s No operation function available", beforeLog.c_str());
         return false;
     }
     else {
@@ -884,7 +903,8 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
                     addToOutstandingCommands(asdu, connection, SingleCommand_isSelect(sc));
 
-                    Iec104Utility::log_info("Send single command (%s)", SingleCommand_isSelect(sc) ? "select" : "execute"); //LCOV_EXCL_LINE
+                    Iec104Utility::log_info("%s Send single command (%s)", beforeLog.c_str(),
+                                            SingleCommand_isSelect(sc) ? "select" : "execute"); //LCOV_EXCL_LINE
 
                     if (m_config->CmdDest() == "")
                         m_oper((char*)"IEC104Command", parameterCount, names, parameters, DestinationBroadcast, NULL);
@@ -1128,7 +1148,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 
             default:
 
-                Iec104Utility::log_error("Unsupported command type");
+                Iec104Utility::log_error("%s Unsupported command type", beforeLog.c_str());
 
                 return false;
         }
@@ -1140,6 +1160,7 @@ IEC104Server::forwardCommand(CS101_ASDU asdu, InformationObject command, IMaster
 void
 IEC104Server::updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPluginMonitor* southPluginMonitor)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::updateSouthMonitoringInstance -";
     DatapointValue dpv = dp->getData();
 
     vector<Datapoint*>* sdp = dpv.getDpVec();
@@ -1160,7 +1181,8 @@ IEC104Server::updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPl
                 connxStatus = IEC104Config::ConnectionStatus::STARTED;
             }
 
-            Iec104Utility::log_warn("south connection status for %s changed to %s", southPluginMonitor->GetAssetName().c_str(), connxStatusValue.c_str()); //LCOV_EXCL_LINE
+            Iec104Utility::log_warn("%s south connection status for %s changed to %s", beforeLog.c_str(),
+                                    southPluginMonitor->GetAssetName().c_str(), connxStatusValue.c_str()); //LCOV_EXCL_LINE
 
             southPluginMonitor->SetConnxStatus(connxStatus);
         }
@@ -1182,7 +1204,8 @@ IEC104Server::updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPl
                 giStatus = IEC104Config::GiStatus::FINISHED;//LCOV_EXCL_LINE
             }
 
-            Iec104Utility::log_warn("south gi status for %s changed to %s", southPluginMonitor->GetAssetName().c_str(), giStatusValue.c_str()); //LCOV_EXCL_LINE
+            Iec104Utility::log_warn("%s south gi status for %s changed to %s", beforeLog.c_str(),
+                                    southPluginMonitor->GetAssetName().c_str(), giStatusValue.c_str()); //LCOV_EXCL_LINE
 
             southPluginMonitor->SetGiStatus(giStatus);
         }
@@ -1198,6 +1221,7 @@ IEC104Server::updateSouthMonitoringInstance(Datapoint* dp, IEC104Config::SouthPl
 uint32_t
 IEC104Server::send(const vector<Reading*>& readings)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::send -";
     int n = 0;
 
     int readingsSent = 0;
@@ -1211,13 +1235,13 @@ IEC104Server::send(const vector<Reading*>& readings)
 
             if (dp->getName() == "south_event") {
 
-                Iec104Utility::log_warn("Receive south_event"); //LCOV_EXCL_LINE
+                Iec104Utility::log_warn("%s Receive south_event", beforeLog.c_str()); //LCOV_EXCL_LINE
 
                 // check if we know the south plugin
                 for (auto southPluginMonitor : m_config->GetMonitoredSouthPlugins()) {
                     if (assetName == southPluginMonitor->GetAssetName()) {
 
-                        Iec104Utility::log_warn("Found matching monitored plugin for south_event"); //LCOV_EXCL_LINE
+                        Iec104Utility::log_warn("%s Found matching monitored plugin for south_event", beforeLog.c_str()); //LCOV_EXCL_LINE
 
                         updateSouthMonitoringInstance(dp, southPluginMonitor);
 
@@ -1232,7 +1256,7 @@ IEC104Server::send(const vector<Reading*>& readings)
                 readingsSent++;
 
                 if (CS104_Slave_isRunning(m_slave) == false) {
-                    //Iec104Utility::log_warn("Failed to send data: server not running");
+                    Iec104Utility::log_warn("%s Failed to send data: server not running", beforeLog.c_str());
                     continue;
                 }
 
@@ -1272,7 +1296,7 @@ IEC104Server::send(const vector<Reading*>& readings)
                     }
                     else if (objDp->getName() == "do_type") {
                         type = IEC104DataPoint::getTypeIdFromString(attrVal.toStringValue());
-                        Iec104Utility::log_debug("TYPE: %s (%i)", attrVal.toStringValue().c_str(), type); //LCOV_EXCL_LINE
+                        Iec104Utility::log_debug("%s TYPE: %s (%i)", attrVal.toStringValue().c_str(), beforeLog.c_str(), type); //LCOV_EXCL_LINE
                     }
                     else if (objDp->getName() == "do_value") {
                         value = new DatapointValue(attrVal);
@@ -1358,14 +1382,14 @@ IEC104Server::send(const vector<Reading*>& readings)
                         }
                     }
                     else {
-                        Iec104Utility::log_error("data point %i:%i not found or type not expected", ca, ioa); //LCOV_EXCL_LINE
+                        Iec104Utility::log_error("%s data point %i:%i not found or type not expected", beforeLog.c_str(), ca, ioa); //LCOV_EXCL_LINE
                     }
                 }
 
                 if (value != nullptr) delete value;
             }
             else {
-               // Iec104Utility::log_error("   --> Unknown data point name: %s", dp->getName().c_str());
+               Iec104Utility::log_info("%s Unknown data point name: %s -> ignored", beforeLog.c_str(), dp->getName().c_str());
                readingsSent++;
             }
         }
@@ -1383,8 +1407,9 @@ IEC104Server::send(const vector<Reading*>& readings)
  */
 void IEC104Server::printCP56Time2a(CP56Time2a time)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::printCP56Time2a -";
     Iec104Utility::log_info(
-        "%02i:%02i:%02i %02i/%02i/%04i", CP56Time2a_getHour(time),
+        "%s %02i:%02i:%02i %02i/%02i/%04i", beforeLog.c_str(), CP56Time2a_getHour(time),
         CP56Time2a_getMinute(time), CP56Time2a_getSecond(time),
         CP56Time2a_getDayOfMonth(time), CP56Time2a_getMonth(time),
         CP56Time2a_getYear(time) + 2000);
@@ -1406,15 +1431,16 @@ IEC104Server::rawMessageHandler(void* parameter,
                                      int msgSize, bool sent)
 
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::rawMessageHandler -";
     if (sent)
-        Iec104Utility::log_debug("SEND: ");
+        Iec104Utility::log_debug("%s SEND: ", beforeLog.c_str());
     else
-        Iec104Utility::log_debug("RCVD: ");
+        Iec104Utility::log_debug("%s RCVD: ", beforeLog.c_str());
 
     int i;
     for (i = 0; i < msgSize; i++)
     {
-        Iec104Utility::log_debug("%02x ", msg[i]);
+        Iec104Utility::log_debug("%s %02x ", beforeLog.c_str(), msg[i]);
     }
 }
 //LCOV_EXCL_STOP
@@ -1433,9 +1459,10 @@ IEC104Server::clockSyncHandler(void* parameter,
                                     IMasterConnection connection,
                                     CS101_ASDU asdu, CP56Time2a newTime)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::clockSyncHandler -";
     IEC104Server* self = (IEC104Server*)parameter;
 
-    Iec104Utility::log_info("Received time sync command with time:");//LCOV_EXCL_LINE
+    Iec104Utility::log_info("%s Received time sync command with time:", beforeLog.c_str());//LCOV_EXCL_LINE
 
     printCP56Time2a(newTime);
 
@@ -1446,17 +1473,17 @@ IEC104Server::clockSyncHandler(void* parameter,
         nsSinceEpoch nsTime = newSystemTimeInMs * 10000000LLU;
 
         if (Hal_setTimeInNs(nsTime)) {
-            Iec104Utility::log_info("Time sync success");//LCOV_EXCL_LINE
+            Iec104Utility::log_info("%s Time sync success", beforeLog.c_str());//LCOV_EXCL_LINE
         }
         else {
-            Iec104Utility::log_error("Time sync failed");//LCOV_EXCL_LINE
+            Iec104Utility::log_error("%s Time sync failed", beforeLog.c_str());//LCOV_EXCL_LINE
         }
 
         /* Set time for ACT_CON message */
         CP56Time2a_setFromMsTimestamp(newTime, Hal_getTimeInMs());
     }
     else {
-        Iec104Utility::log_warn("Time sync disabled -> ignore time sync command");//LCOV_EXCL_LINE
+        Iec104Utility::log_warn("%s Time sync disabled -> ignore time sync command", beforeLog.c_str());//LCOV_EXCL_LINE
 
         /* ignore time -> send negative response */
         CS101_ASDU_setNegative(asdu, true);
@@ -1630,9 +1657,10 @@ IEC104Server::interrogationHandler(void* parameter,
                                         IMasterConnection connection,
                                         CS101_ASDU asdu, uint8_t qoi)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::interrogationHandler -";
     IEC104Server* self = (IEC104Server*)parameter;
 
-    Iec104Utility::log_info("Received interrogation for group %i", qoi);//LCOV_EXCL_LINE
+    Iec104Utility::log_info("%s Received interrogation for group %i", beforeLog.c_str(), qoi);//LCOV_EXCL_LINE
 
     int ca = CS101_ASDU_getCA(asdu);
 
@@ -1663,7 +1691,7 @@ IEC104Server::interrogationHandler(void* parameter,
             return true;
         }
         else {
-            Iec104Utility::log_debug("Logical device with CA %i found", ca);//LCOV_EXCL_LINE
+            Iec104Utility::log_debug("%s Logical device with CA %i found", beforeLog.c_str(), ca);//LCOV_EXCL_LINE
             self->sendInterrogationResponse(connection, asdu, ca, qoi);
         }
     }
@@ -1708,6 +1736,7 @@ isSupportedCommandType(IEC60870_5_TypeID typeId)
 bool
 IEC104Server::checkIfCmdTimeIsValid(int typeId, InformationObject io)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::checkIfCmdTimeIsValid -";
     if (m_config->CmdRecvTimeout() == 0)
         return true;
 
@@ -1739,7 +1768,7 @@ IEC104Server::checkIfCmdTimeIsValid(int typeId, InformationObject io)
             break; //LCOV_EXCL_LINE
 
         default:
-            Iec104Utility::log_debug("Command with type %i is not supported", typeId);
+            Iec104Utility::log_debug("%s Command with type %i is not supported", beforeLog.c_str(), typeId);
             return false;
     }
 
@@ -1763,11 +1792,12 @@ bool
 IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                CS101_ASDU asdu)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::asduHandler -";
     IEC104Server* self = (IEC104Server*)parameter;
 
     if (isSupportedCommandType(CS101_ASDU_getTypeID(asdu)))
     {
-        Iec104Utility::log_info("received command");//LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s received command", beforeLog.c_str());//LCOV_EXCL_LINE
 
         bool sendResponse = true;
 
@@ -1803,7 +1833,8 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                     }
                                     else {
                                         if (self->checkIfCmdTimeIsValid(typeId, io) == false) {
-                                            Iec104Utility::log_warn("command (%i) for %i:%i has invalid timestamp -> ignore", typeId, ca, ioa);//LCOV_EXCL_LINE
+                                            Iec104Utility::log_warn("%s command (%i) for %i:%i has invalid timestamp -> ignore",
+                                                                    beforeLog.c_str(), typeId, ca, ioa);//LCOV_EXCL_LINE
                                             acceptCommand = false;
 
                                             /* send negative response -> according to IEC 60870-5-104 the command should be silently ignored instead! */
@@ -1815,7 +1846,7 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                             sendResponse = false;
                                         }
                                         else {
-                                            Iec104Utility::log_debug("command time valid -> accept");//LCOV_EXCL_LINE
+                                            Iec104Utility::log_debug("%s command time valid -> accept", beforeLog.c_str());//LCOV_EXCL_LINE
                                         }
                                     }
                                 }
@@ -1837,33 +1868,33 @@ IEC104Server::asduHandler(void* parameter, IMasterConnection connection,
                                     }
                                 }
                                 else {
-                                    Iec104Utility::log_warn("Command not accepted"); //LCOV_EXCL_LINE
+                                    Iec104Utility::log_warn("%s Command not accepted", beforeLog.c_str()); //LCOV_EXCL_LINE
                                     CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
                                 }
                             }
                             else {
-                                Iec104Utility::log_warn("Unknown command type"); //LCOV_EXCL_LINE
+                                Iec104Utility::log_warn("%s Unknown command type", beforeLog.c_str()); //LCOV_EXCL_LINE
                                 CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
                             }
                         }
                         else {
-                            Iec104Utility::log_warn("Unknown IOA (%i:%i)", ca, ioa); //LCOV_EXCL_LINE
+                            Iec104Utility::log_warn("%s Unknown IOA (%i:%i)", beforeLog.c_str(), ca, ioa); //LCOV_EXCL_LINE
                             CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_IOA);
                         }
                     }
                     else {
-                        Iec104Utility::log_warn("Originator address %i not allowed", CS101_ASDU_getOA(asdu)); //LCOV_EXCL_LINE
+                        Iec104Utility::log_warn("%s Originator address %i not allowed", beforeLog.c_str(), CS101_ASDU_getOA(asdu)); //LCOV_EXCL_LINE
                     }
                 }
                 else {
-                    Iec104Utility::log_warn("Unknown CA: %i", ca); //LCOV_EXCL_LINE
+                    Iec104Utility::log_warn("%s Unknown CA: %i", beforeLog.c_str(), ca); //LCOV_EXCL_LINE
                     CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_CA);
                 }
 
                 InformationObject_destroy(io);
             }
             else {
-                Iec104Utility::log_warn("Unknown type or information object missing"); //LCOV_EXCL_LINE
+                Iec104Utility::log_warn("%s Unknown type or information object missing", beforeLog.c_str()); //LCOV_EXCL_LINE
                 CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_TYPE_ID);
             }
         }
@@ -1893,7 +1924,8 @@ bool
 IEC104Server::connectionRequestHandler(void* parameter,
                                             const char* ipAddress)
 {
-    Iec104Utility::log_info("New connection request from %s", ipAddress); //LCOV_EXCL_LINE
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::connectionRequestHandler -";
+    Iec104Utility::log_info("%s New connection request from %s", beforeLog.c_str(), ipAddress); //LCOV_EXCL_LINE
 
     return true;
 }
@@ -1910,6 +1942,7 @@ IEC104Server::connectionEventHandler(void* parameter,
                                           IMasterConnection con,
                                           CS104_PeerConnectionEvent event)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Server::connectionRequestHandler -";
     IEC104Server* self = (IEC104Server*)parameter;
 
     char ipAddrBuf[100];
@@ -1919,20 +1952,20 @@ IEC104Server::connectionEventHandler(void* parameter,
 
     if (event == CS104_CON_EVENT_CONNECTION_OPENED)
     {
-        Iec104Utility::log_info("Connection opened (%s)", ipAddrBuf); //LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s Connection opened (%s)", beforeLog.c_str(), ipAddrBuf); //LCOV_EXCL_LINE
     }
     else if (event == CS104_CON_EVENT_CONNECTION_CLOSED)
     {
-        Iec104Utility::log_info("Connection closed (%s)", ipAddrBuf);//LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s Connection closed (%s)", beforeLog.c_str(), ipAddrBuf);//LCOV_EXCL_LINE
         self->removeOutstandingCommands(con);
     }
     else if (event == CS104_CON_EVENT_ACTIVATED)
     {
-        Iec104Utility::log_info("Connection activated (%s)", ipAddrBuf);//LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s Connection activated (%s)", beforeLog.c_str(), ipAddrBuf);//LCOV_EXCL_LINE
     }
     else if (event == CS104_CON_EVENT_DEACTIVATED)
     {
-        Iec104Utility::log_info("Connection deactivated (%s)", ipAddrBuf);//LCOV_EXCL_LINE
+        Iec104Utility::log_info("%s Connection deactivated (%s)", beforeLog.c_str(), ipAddrBuf);//LCOV_EXCL_LINE
         self->removeOutstandingCommands(con);
     }
 }
