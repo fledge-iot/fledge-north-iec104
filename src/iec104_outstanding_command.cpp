@@ -1,6 +1,7 @@
-#include "iec104.h"
-
 #include <lib60870/hal_time.h>
+
+#include "iec104.h"
+#include "iec104_utility.hpp"
 
 IEC104OutstandingCommand::IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int cmdExecTimeout, bool isSelect)
 {
@@ -44,7 +45,7 @@ void
 IEC104OutstandingCommand::sendActCon(bool negative)
 {
     if(IMasterConnection_sendACT_CON(m_connection, m_receivedAsdu, negative) == false) {
-        printf("Failed to send ACT-CON\n");
+        Iec104Utility::log_error("Failed to send ACT-CON");
     }
 
     if ((negative == false) && (m_isSelect == false)) {
@@ -63,7 +64,7 @@ IEC104OutstandingCommand::sendActTerm(bool negative)
     CS101_ASDU_setNegative(m_receivedAsdu, negative);
 
     if(IMasterConnection_sendACT_TERM(m_connection, m_receivedAsdu) == false) {
-        printf("Failed to send ACT-CON\n");
+        Iec104Utility::log_error("Failed to send ACT-CON");
     }
 
     m_nextTimeout = 0;

@@ -1,5 +1,7 @@
 #include <map>
+
 #include "iec104_datapoint.hpp"
+#include "iec104_utility.hpp"
 
 // Map of all handled ASDU types by the plugin
 static std::map<std::string, int> mapAsduTypeId = {

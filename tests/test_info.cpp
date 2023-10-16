@@ -1,11 +1,6 @@
 #include <gtest/gtest.h>
-#include <plugin_api.h>
-#include <string.h>
-#include <string>
-#include <rapidjson/document.h>
 
-using namespace std;
-using namespace rapidjson;
+#include <plugin_api.h>
 
 extern "C" {
 	PLUGIN_INFORMATION *plugin_info();

@@ -1,11 +1,12 @@
 #include <gtest/gtest.h>
-#include <iec104.h>
 
-#include <memory>
-#include <utility>
-#include <plugin_api.h>
+#include <reading.h>
 
+#include <lib60870/hal_thread.h>
+
+#include "iec104.h"
 #include "cs104_connection.h"
+
 using namespace std;
 
 static string protocol_stack = QUOTE({

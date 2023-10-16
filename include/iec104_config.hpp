@@ -1,29 +1,23 @@
 #ifndef IEC104_CONFIG_H
 #define IEC104_CONFIG_H
 
-#include "logger.h"
-#include "rapidjson/document.h"
-#include "rapidjson/error/en.h"
 #include <map>
 #include <vector>
-#include <sstream>
-#include <algorithm>
 
-#include "iec104_datapoint.hpp"
 #include <lib60870/cs104_slave.h>
 
-using namespace std;
+class IEC104DataPoint;
 
 class IEC104Config
 {
 public:
     IEC104Config();
-    IEC104Config(const string& protocolConfig, const string& exchangeConfig);
+    IEC104Config(const std::string& protocolConfig, const std::string& exchangeConfig);
     ~IEC104Config();
 
-    void importProtocolConfig(const string& protocolConfig);
-    void importExchangeConfig(const string& exchangeConfig);
-    void importTlsConfig(const string& tlsConfig);
+    void importProtocolConfig(const std::string& protocolConfig);
+    void importExchangeConfig(const std::string& exchangeConfig);
+    void importTlsConfig(const std::string& tlsConfig);
 
     std::map<int, std::map<int, IEC104DataPoint*>>* getExchangeDefinitions() {return m_exchangeDefinitions;};
 
@@ -56,7 +50,7 @@ public:
     int CmdRecvTimeout() {return m_cmdRecvTimeout;};
     int CmdExecTimeout() {return m_cmdExecTimeout;};
 
-    string& CmdDest() {return m_cmdDest;};
+    std::string& CmdDest() {return m_cmdDest;};
 
     std::string& GetPrivateKey() {return m_privateKey;};
     std::string& GetOwnCertificate() {return m_ownCertificate;};
@@ -110,7 +104,7 @@ public:
 
 private:
 
-    static bool isValidIPAddress(const string& addrStr);
+    static bool isValidIPAddress(const std::string& addrStr);
 
     void deleteExchangeDefinitions();
 
@@ -143,9 +137,9 @@ private:
     int m_cmdRecvTimeout = 0;
     int m_cmdExecTimeout = 20;
 
-    string m_ip;
+    std::string m_ip;
 
-    string m_cmdDest = "";
+    std::string m_cmdDest = "";
 
     std::vector<CS104_RedundancyGroup> m_configuredRedundancyGroups;
 

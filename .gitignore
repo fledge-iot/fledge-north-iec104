@@ -13,3 +13,4 @@ build
 
 # Github
 .github*
+.vscode/

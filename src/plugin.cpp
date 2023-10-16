@@ -7,21 +7,15 @@
  *
  * Author: Akli Rahmoun <akli.rahmoun at rte-france.com>
  */
+
 #include <plugin_api.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <strings.h>
-#include <string>
-#include <logger.h>
-#include <plugin_exception.h>
-#include <iostream>
-#include <config_category.h>
 #include <version.h>
-#include <iec104.h>
+
+#include "iec104.h"
+#include "iec104_utility.hpp"
 
 
 using namespace std;
-using namespace rapidjson;
 
 extern "C" {
 
@@ -233,7 +227,7 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
-    Logger::getLogger()->info("Initializing the plugin");
+    Iec104Utility::log_info("Initializing the plugin");
 
 	IEC104Server* iec104 = new IEC104Server();
 
@@ -260,7 +254,7 @@ void plugin_register(PLUGIN_HANDLE handle,
 		bool ( *write)(const char *name, const char *value, ControlDestination destination, ...),
 		int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...))
 {
-    Logger::getLogger()->info("plugin_register");
+    Iec104Utility::log_info("plugin_register");
 
     IEC104Server* iec104 = (IEC104Server*)handle;
 

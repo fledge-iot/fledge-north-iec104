@@ -12,23 +12,25 @@
  */
 
 // clang-format off
-#include <reading.h>
-#include <config_category.h>
-#include <logger.h>
+
 #include <plugin_api.h>
-#include <string>
 #include <vector>
 #include <map>
 #include <mutex>
 #include <thread>
-#include "iec104_datapoint.hpp"
+
 #include "lib60870/cs104_slave.h"
 #include "lib60870/cs101_information_objects.h"
-#include "lib60870/hal_thread.h"
-#include "lib60870/hal_time.h"
 
 #include "iec104_config.hpp"
+
 // clang-format on
+
+class Reading;
+class ConfigCategory;
+class IEC104DataPoint;
+class Datapoint;
+class DatapointValue;
 
 class IEC104OutstandingCommand
 {
@@ -137,7 +139,6 @@ private:
     TLSConfiguration m_tlsConfig = nullptr;
     CS101_AppLayerParameters alParams;
     std::string m_name;
-    Logger* m_log;
     IEC104Config* m_config;
 
     int m_actConTimeout = 1000;

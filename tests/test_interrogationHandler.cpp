@@ -1,13 +1,10 @@
 #include <gtest/gtest.h>
-#include <iec104.h>
-
-#include <memory>
-#include <utility>
 
 #include <lib60870/linked_list.h>
+#include <lib60870/hal_thread.h>
 
+#include "iec104.h"
 #include "cs104_connection.h"
-#include <plugin_api.h>
 
 using namespace std;
 
