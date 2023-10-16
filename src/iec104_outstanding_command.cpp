@@ -44,8 +44,9 @@ IEC104OutstandingCommand::isSentFromConnection(IMasterConnection connection)
 void
 IEC104OutstandingCommand::sendActCon(bool negative)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104OutstandingCommand::sendActCon -";
     if(IMasterConnection_sendACT_CON(m_connection, m_receivedAsdu, negative) == false) {
-        Iec104Utility::log_error("Failed to send ACT-CON");
+        Iec104Utility::log_error("%s Failed to send ACT-CON", beforeLog.c_str());
     }
 
     if ((negative == false) && (m_isSelect == false)) {
@@ -61,10 +62,11 @@ IEC104OutstandingCommand::sendActCon(bool negative)
 void
 IEC104OutstandingCommand::sendActTerm(bool negative)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104OutstandingCommand::sendActTerm -";
     CS101_ASDU_setNegative(m_receivedAsdu, negative);
 
     if(IMasterConnection_sendACT_TERM(m_connection, m_receivedAsdu) == false) {
-        Iec104Utility::log_error("Failed to send ACT-CON");
+        Iec104Utility::log_error("%s Failed to send ACT-CON", beforeLog.c_str());
     }
 
     m_nextTimeout = 0;

@@ -19,8 +19,6 @@ using namespace std;
 
 extern "C" {
 
-#define PLUGIN_NAME "iec104"
-
 /**
  * Plugin specific default configuration
  */
@@ -227,7 +225,8 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
-    Iec104Utility::log_info("Initializing the plugin");
+    std::string beforeLog = Iec104Utility::PluginName + " - plugin_init -";
+    Iec104Utility::log_info("%s Initializing the plugin", beforeLog.c_str());
 
 	IEC104Server* iec104 = new IEC104Server();
 
@@ -254,7 +253,8 @@ void plugin_register(PLUGIN_HANDLE handle,
 		bool ( *write)(const char *name, const char *value, ControlDestination destination, ...),
 		int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...))
 {
-    Iec104Utility::log_info("plugin_register");
+    std::string beforeLog = Iec104Utility::PluginName + " - plugin_register -";
+    Iec104Utility::log_info("%s plugin_register", beforeLog.c_str());
 
     IEC104Server* iec104 = (IEC104Server*)handle;
 
