@@ -62,9 +62,9 @@ jobs:
       # Build image
       - name: Build images
         run: |
-          cd ./fledgepower-deployment/s104-n104-pt-ubuntu2004/fledge/
+          cd ./fledgepower-deployment/s104-n104-ubuntu2004/fledge/
           sudo -E docker build -f fledge.dockerfile -t ${{ env.IMAGE_REGISTRY }}/${{ github.repository_owner }}/${{ env.FLEDGE_IMAGE_NAME_104 }}:${{ env.IMAGE_TAG }} . --label ${{ github.ref }}        
-          cd ./fledgepower-deployment/sHNZ-n104-pt-ubuntu2004/fledge/
+          cd ./fledgepower-deployment/sHNZ-n104-ubuntu2004/fledge/
           sudo -E docker build -f fledge.dockerfile -t ${{ env.IMAGE_REGISTRY }}/${{ github.repository_owner }}/${{ env.FLEDGE_IMAGE_NAME_HNZ }}:${{ env.IMAGE_TAG }} . --label ${{ github.ref }}        
   
       # Push to ghcr.io (Github Image Registry)
