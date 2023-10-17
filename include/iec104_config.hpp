@@ -96,8 +96,8 @@ public:
     private:
 
         std::string m_assetName;
-        ConnectionStatus m_connxStatus;
-        GiStatus m_giStatus;
+        ConnectionStatus m_connxStatus = ConnectionStatus::NOT_CONNECTED;
+        GiStatus m_giStatus = GiStatus::IDLE;
     };
 
     std::vector<SouthPluginMonitor*> GetMonitoredSouthPlugins() {return m_monitoredSouthPlugins;};
@@ -115,6 +115,7 @@ private:
 
     bool m_useTls = false;
     int m_tcpPort = -1; /* use default port */
+    const int m_defaultTcpPort = 2404;
     bool m_bindOnIp = false;
     int m_k = 12;
     int m_w = 8;

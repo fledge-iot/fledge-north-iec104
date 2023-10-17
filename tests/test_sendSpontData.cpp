@@ -6,6 +6,7 @@
 #include <lib60870/hal_time.h>
 
 #include "iec104.h"
+#include "iec104_datapoint.hpp"
 #include "cs104_connection.h"
 
 using namespace std;
@@ -285,7 +286,9 @@ static Datapoint* createDataObject(const char* type, int ca, int ioa, int cot,
 
 bool SendSpontDataTest::test1_ASDUReceivedHandler(void* parameter, int address, CS101_ASDU asdu)
 {
-    printf("ASDU received - type: %i CA: %i COT: %i\n", CS101_ASDU_getTypeID(asdu), CS101_ASDU_getCA(asdu), CS101_ASDU_getCOT(asdu));
+    int typeId = CS101_ASDU_getTypeID(asdu);
+    printf("ASDU received - type: %s (%i) CA: %i COT: %i\n", IEC104DataPoint::getStringFromTypeID(typeId).c_str(), typeId,
+            CS101_ASDU_getCA(asdu), CS101_ASDU_getCOT(asdu));
 
     SendSpontDataTest* self = (SendSpontDataTest*)parameter;
     

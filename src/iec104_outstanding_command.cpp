@@ -1,10 +1,12 @@
 #include <lib60870/hal_time.h>
 
 #include "iec104.h"
+#include "iec104_datapoint.hpp"
 #include "iec104_utility.hpp"
 
 IEC104OutstandingCommand::IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConnection connection, int cmdExecTimeout, bool isSelect)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104OutstandingCommand::IEC104OutstandingCommand -";
     m_receivedAsdu = CS101_ASDU_clone(asdu, NULL);
 
     m_connection = connection;
@@ -25,9 +27,16 @@ IEC104OutstandingCommand::IEC104OutstandingCommand(CS101_ASDU asdu, IMasterConne
 
         InformationObject_destroy(io);
     }
+    else {
+        Iec104Utility::log_error("%s ASDU of type %s and CA=%d does not have a IOA field", beforeLog.c_str(),
+                                IEC104DataPoint::getStringFromTypeID(m_typeId).c_str(), m_ca);
+    }
 
     m_commandRcvdTime = Hal_getTimeInMs();
     m_nextTimeout = m_commandRcvdTime + (m_cmdExecTimeout * 1000);
+    Iec104Utility::log_debug("%s Created outstanding command: typeId=%s, CA=%d, IOA=%d, select=%s, timeout=%d", beforeLog.c_str(),
+                            IEC104DataPoint::getStringFromTypeID(m_typeId).c_str(), m_ca, m_ioa, m_isSelect?"true":"false",
+                            m_cmdExecTimeout);
 }
 
 IEC104OutstandingCommand::~IEC104OutstandingCommand()
