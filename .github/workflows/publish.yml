@@ -14,7 +14,7 @@ env:
   REGISTRY_USER: ${{ github.actor }}
   REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
   FLEDGE_IMAGE_NAME_104: 'fledgepower/fledge_104'
-  FLEDGE_IMAGE_NAME_HNZ: 'fledgepower/fledge_HNZ'
+  FLEDGE_IMAGE_NAME_HNZ: 'fledgepower/fledge_hnz'
   IMAGE_TAG: 'latest'
 
 jobs:
