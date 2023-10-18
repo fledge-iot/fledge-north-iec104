@@ -1,13 +1,11 @@
 #include <gtest/gtest.h>
-#include <iec104.h>
-
-#include <memory>
-#include <utility>
 
 #include <lib60870/linked_list.h>
+#include <lib60870/hal_thread.h>
 
+#include "iec104.h"
+#include "iec104_datapoint.hpp"
 #include "cs104_connection.h"
-#include <plugin_api.h>
 
 using namespace std;
 
@@ -434,15 +432,17 @@ struct sASDU_testInfo
 };
 
 static bool test1_ASDUReceivedHandler(void* parameter, int address, CS101_ASDU asdu)
-{
-    printf("ASDU received - type: %i CA: %i COT: %i\n", CS101_ASDU_getTypeID(asdu), CS101_ASDU_getCA(asdu), CS101_ASDU_getCOT(asdu));
+{   
+    IEC60870_5_TypeID typeId = CS101_ASDU_getTypeID(asdu);
+    printf("ASDU received - type: %s (%i) CA: %i COT: %i\n", IEC104DataPoint::getStringFromTypeID(typeId).c_str(),
+            static_cast<int>(typeId), CS101_ASDU_getCA(asdu), CS101_ASDU_getCOT(asdu));
 
     InterrogationHandlerTest* self = (InterrogationHandlerTest*)parameter;
     
     if (self->receivedASDUs) {
         struct sASDU_testInfo* newAsduInfo = (struct sASDU_testInfo*)calloc(1, sizeof(struct sASDU_testInfo));
 
-        newAsduInfo->typeId = CS101_ASDU_getTypeID(asdu);
+        newAsduInfo->typeId = typeId;
         newAsduInfo->ca = CS101_ASDU_getCA(asdu);
         newAsduInfo->cot = CS101_ASDU_getCOT(asdu);
         newAsduInfo->numberOfIOs = CS101_ASDU_getNumberOfElements(asdu);

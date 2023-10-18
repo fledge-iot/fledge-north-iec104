@@ -34,14 +34,14 @@ public:
 
     bool isMatchingCommand(int typeId);
 
-    int m_ca;
-    int m_ioa;
-    int m_type;
-    bool m_isCommand;
+    int m_ca = 0;
+    int m_ioa = 0;
+    int m_type = 0;
+    bool m_isCommand = false;
     std::string m_label;
-    int m_gi_groups;
+    int m_gi_groups = 0;
 
-    int terminationTimeout; /* termination timeout for commands in ms */
+    int terminationTimeout = 0; /* termination timeout for commands in ms */
 
     union {
         struct {

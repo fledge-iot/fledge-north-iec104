@@ -1,11 +1,12 @@
 #include <gtest/gtest.h>
-#include <iec104.h>
+
 #include "linked_list.h"
+#include <lib60870/hal_thread.h>
+#include <lib60870/hal_time.h>
 
-#include <memory>
-#include <utility>
-
+#include "iec104.h"
 #include "cs104_connection.h"
+
 using namespace std;
 
 static string protocol_stack_1 = QUOTE({

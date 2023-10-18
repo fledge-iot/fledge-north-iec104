@@ -12,23 +12,25 @@
  */
 
 // clang-format off
-#include <reading.h>
-#include <config_category.h>
-#include <logger.h>
+
 #include <plugin_api.h>
-#include <string>
 #include <vector>
 #include <map>
 #include <mutex>
 #include <thread>
-#include "iec104_datapoint.hpp"
+
 #include "lib60870/cs104_slave.h"
 #include "lib60870/cs101_information_objects.h"
-#include "lib60870/hal_thread.h"
-#include "lib60870/hal_time.h"
 
 #include "iec104_config.hpp"
+
 // clang-format on
+
+class Reading;
+class ConfigCategory;
+class IEC104DataPoint;
+class Datapoint;
+class DatapointValue;
 
 class IEC104OutstandingCommand
 {
@@ -55,13 +57,13 @@ private:
 
     IMasterConnection m_connection = nullptr;
 
-    int m_typeId;
-    int m_ca;
-    int m_ioa;
+    int m_typeId = 0;
+    int m_ca = 0;
+    int m_ioa = 0;
 
-    bool m_isSelect;
+    bool m_isSelect = false;
 
-    int m_cmdExecTimeout;
+    int m_cmdExecTimeout = 0;
 
     uint64_t m_commandRcvdTime = 0;
     uint64_t m_nextTimeout = 0;
@@ -90,6 +92,8 @@ public:
     void ActTermTimeout(int value) {m_actTermTimeout = value;};
 
     void registerControl(int (* operation)(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...));
+
+    int operation(char *operation, int paramCount, char *names[], char *parameters[]);
 
 private:
 
@@ -135,15 +139,13 @@ private:
 
     CS104_Slave m_slave{};
     TLSConfiguration m_tlsConfig = nullptr;
-    CS101_AppLayerParameters alParams;
-    std::string m_name;
-    Logger* m_log;
-    IEC104Config* m_config;
+    CS101_AppLayerParameters alParams = nullptr;
+    IEC104Config* m_config = nullptr;
 
     int m_actConTimeout = 1000;
     int m_actTermTimeout = 1000;
 
-    int (*m_oper)(char *operation, int paramCount, char* names[], char* parameters[], ControlDestination destination, ...) = NULL;
+    int (*m_oper)(char *operation, int paramCount, char* names[], char* parameters[], ControlDestination destination, ...) = nullptr;
 
     bool m_started = false;
     std::thread* m_monitoringThread = nullptr;
