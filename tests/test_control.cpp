@@ -6,6 +6,7 @@
 #include <lib60870/hal_time.h>
 
 #include "iec104.h"
+#include "iec104_datapoint.hpp"
 #include "cs104_connection.h"
 
 using namespace std;
@@ -266,7 +267,9 @@ ControlTest::m_asduReceivedHandler(void* parameter, int address, CS101_ASDU asdu
 
     self->asduHandlerCalled++;
 
-    printf("CS101_ASDU: type: %i ca: %i cot: %i\n", CS101_ASDU_getTypeID(asdu), CS101_ASDU_getCA(asdu), CS101_ASDU_getCOT(asdu));
+    int typeId = CS101_ASDU_getTypeID(asdu);
+    printf("CS101_ASDU: type: %s (%d) ca: %i cot: %i\n", IEC104DataPoint::getStringFromTypeID(typeId).c_str(), typeId,
+            CS101_ASDU_getCA(asdu), CS101_ASDU_getCOT(asdu));
     
     self->actConNegative = false;
 
