@@ -113,8 +113,12 @@ IEC104Config::importProtocolConfig(const std::string& protocolConfig)
         const Value& southMonitoring = protocolStack["south_monitoring"];
 
         if (southMonitoring.IsArray()) {
-            for (const Value& southMonInst : southMonitoring.GetArray()) {;
+            for (const Value& southMonInst : southMonitoring.GetArray()) {
 
+                if (!southMonInst.IsObject()) {
+                    Iec104Utility::log_error("%s south_monitoring element is not an object", beforeLog.c_str());
+                    continue;
+                }
                 if (southMonInst.HasMember("asset")) {
                     if (southMonInst["asset"].IsString()) {
                         std::string assetName = southMonInst["asset"].GetString();
@@ -131,6 +135,9 @@ IEC104Config::importProtocolConfig(const std::string& protocolConfig)
                     Iec104Utility::log_error("%s south_monitoring is missing \"asset\" element", beforeLog.c_str());
                 }
             }
+        }
+        else {
+            Iec104Utility::log_error("%s south_monitoring is not an array", beforeLog.c_str());
         }
     }
 
@@ -447,7 +454,7 @@ IEC104Config::importProtocolConfig(const std::string& protocolConfig)
                             m_filterOriginators = true;
                         }
                         else {
-                            Iec104Utility::log_error("%s application_layer.filter_list: OA address value out of ragne [1..255]: %d",
+                            Iec104Utility::log_error("%s application_layer.filter_list: OA address value out of range [1..255]: %d",
                                                     beforeLog.c_str(), oaValue);
                         }
                     }
@@ -608,7 +615,7 @@ IEC104Config::importExchangeConfig(const std::string& exchangeConfig)
 
         for (const Value& protocol : datapoint[JSON_PROTOCOLS].GetArray()) {
             
-            if (!datapoint.IsObject()) {
+            if (!protocol.IsObject()) {
                 Iec104Utility::log_error("%s %s element is not an object", beforeLog.c_str(), JSON_PROTOCOLS);
                 return;
             } 
@@ -655,7 +662,17 @@ IEC104Config::importExchangeConfig(const std::string& exchangeConfig)
                                     group = 0;
                                 }   
                                 else if (all_of(substr.begin(), substr.end(), ::isdigit)) {
-                                    group = stoi(substr);
+                                    try {
+                                        group = std::stoi(substr);
+                                    } catch (const std::invalid_argument &e) {
+                                        Iec104Utility::log_error("%s  Cannot convert group '%s' to integer: %s",
+                                                                beforeLog.c_str(), substr.c_str(), e.what());
+                                        return;
+                                    } catch (const std::out_of_range &e) {
+                                        Iec104Utility::log_error("%s  Cannot convert group '%s' to integer: %s",
+                                                                beforeLog.c_str(), substr.c_str(), e.what());
+                                        return;
+                                    }
 
                                     if(group <= 0 || group >= 17){
                                         Iec104Utility::log_warn("%s %s value out of range [1..16]: %d, defaulting to station.",
@@ -705,16 +722,16 @@ IEC104Config::importExchangeConfig(const std::string& exchangeConfig)
                         ca = std::stoi(caStr);
                         ioa = std::stoi(ioaStr);
                     } catch (const std::invalid_argument &e) {
-                        Iec104Utility::log_error("%s Cannot convert ca '%s' or ioa '%s' to integer: %s",
+                        Iec104Utility::log_error("%s  Cannot convert ca '%s' or ioa '%s' to integer: %s",
                                                 beforeLog.c_str(), caStr.c_str(), ioaStr.c_str(), e.what());
                         return;
                     } catch (const std::out_of_range &e) {
-                        Iec104Utility::log_error("%s Cannot convert ca '%s' or ioa '%s' to integer: %s",
+                        Iec104Utility::log_error("%s  Cannot convert ca '%s' or ioa '%s' to integer: %s",
                                                 beforeLog.c_str(), caStr.c_str(), ioaStr.c_str(), e.what());
                         return;
                     }
 
-                    Iec104Utility::log_debug("%s    CA: %i IOA: %i", beforeLog.c_str(), ca, ioa);
+                    Iec104Utility::log_debug("%s  CA: %i IOA: %i", beforeLog.c_str(), ca, ioa);
 
                     int typeId = IEC104DataPoint::getTypeIdFromString(typeIdStr);
                     int dataType = IEC104DataPoint::typeIdToDataType(typeId);
@@ -728,12 +745,13 @@ IEC104Config::importExchangeConfig(const std::string& exchangeConfig)
                         (*m_exchangeDefinitions)[ca][ioa] = newDp;
                     }
                     else {
-                        Iec104Utility::log_debug("%s Skip datapoint %i:%i as it is not a supported type: %s",
+                        Iec104Utility::log_debug("%s  Skip datapoint %i:%i as it is not a supported type: %s",
                                                 beforeLog.c_str(), ca, ioa, typeIdStr.c_str());
                     }
                 }
                 else {
-                    Iec104Utility::log_error("%s %s value does not follow format 'XXX-YYY'", beforeLog.c_str(), JSON_PROT_ADDR);
+                    Iec104Utility::log_error("%s  %s value does not follow format 'XXX-YYY': %s", beforeLog.c_str(), JSON_PROT_ADDR,
+                                            address.c_str());
                     return;
                 }
             }
@@ -793,8 +811,8 @@ IEC104Config::importTlsConfig(const std::string& tlsConfig)
             }
             
             if (caCert.HasMember("cert_file") && caCert["cert_file"].IsString()) {
-                    std::string certFileName = caCert["cert_file"].GetString();
-                    m_caCertificates.push_back(certFileName);
+                std::string certFileName = caCert["cert_file"].GetString();
+                m_caCertificates.push_back(certFileName);
             }
             else {
                 Iec104Utility::log_warn("%s ca_certs.cert_file does not exist or is not a string", beforeLog.c_str());
@@ -816,9 +834,8 @@ IEC104Config::importTlsConfig(const std::string& tlsConfig)
             }
 
             if (remoteCert.HasMember("cert_file") && remoteCert["cert_file"].IsString()) {
-                    std::string certFileName = remoteCert["cert_file"].GetString();
-
-                    m_remoteCertificates.push_back(certFileName);
+                std::string certFileName = remoteCert["cert_file"].GetString();
+                m_remoteCertificates.push_back(certFileName);
             }
             else {
                 Iec104Utility::log_warn("%s remote_certs.cert_file does not exist or is not a string", beforeLog.c_str());
