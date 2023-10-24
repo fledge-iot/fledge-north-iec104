@@ -396,7 +396,10 @@ IEC104Server::operation(char *operation, int paramCount, char *names[], char *pa
         res = m_oper(operation, paramCount, names, parameters, DestinationService, m_config->CmdDest().c_str());
     }
     Iec104Utility::log_debug("%s Operation returned %d", beforeLog.c_str(), res);
-    return res;
+    // Fledge operations always return -1 for now, this may be fixed by https://github.com/fledge-iot/fledge/issues/1210
+    // In the meantime consider they always succeed by returning 1 instead of res
+    // return res;
+    return 1;
 }
 
 bool
