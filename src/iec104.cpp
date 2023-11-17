@@ -282,14 +282,18 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
             }
         }
 
-        m_started = true;
-        m_monitoringThread = new std::thread(&IEC104Server::_monitoringThread, this);
 
         m_log->info("CS104 server initialized"); //LCOV_EXCL_LINE
     }
     else {
         m_log->error("Failed to create CS104 server instance"); //LCOV_EXCL_LINE
     }
+}
+
+void
+IEC104Server::startSlave(){
+    m_started = true;
+    m_monitoringThread = new std::thread(&IEC104Server::_monitoringThread, this);
 }
 
 /**
@@ -371,6 +375,7 @@ void
 IEC104Server::_monitoringThread()
 {
     bool southStatusRequested = false;
+    m_log->warn("Monitoring thread called");
 
     bool serverRunning = false;
 
@@ -1251,6 +1256,7 @@ IEC104Server::send(const vector<Reading*>& readings)
             }
             else if (dp->getName() == "data_object")
             {
+                m_log->debug("Send dp -> %s", dp->toJSONProperty().c_str());
                 readingsSent++;
 
                 if (CS104_Slave_isRunning(m_slave) == false) {

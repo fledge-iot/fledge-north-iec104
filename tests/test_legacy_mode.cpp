@@ -412,6 +412,7 @@ TEST_F(LegacyModeTest, ConnectWhileSouthNotStarted)
     iec104Server->registerControl(operateHandler);
 
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 

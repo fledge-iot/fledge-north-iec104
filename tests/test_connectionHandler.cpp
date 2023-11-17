@@ -1588,6 +1588,7 @@ protected:
 TEST_F(ConnectionHandlerTest, NormalConnection)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1603,83 +1604,99 @@ TEST_F(ConnectionHandlerTest, NormalConnection)
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack1)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_1, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack2)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack3)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_3, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack4)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_4, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack5)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_5, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack6)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_6, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack7)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_7, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack8)
 {
     iec104Server->setJsonConfig("", exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack9)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_9, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack10)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_10, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack11)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_11, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack12)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_12, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack13)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_13, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack14)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_14, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack15)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_15, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 TEST_F(ConnectionHandlerTest, BrokenProtocolStack16)
 {
     iec104Server->setJsonConfig(broken_protocol_stack_16, exchanged_data, tls);
+    iec104Server->startSlave();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1700,6 +1717,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionNoClientCertificates)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1740,6 +1758,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionEmptyClientCertificates)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1767,6 +1786,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionEmptyClientKey)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1794,6 +1814,7 @@ TEST_F(ConnectionHandlerTest, TLSConnection)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1821,6 +1842,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionEmptyClientCACert)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_3 );
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1848,6 +1870,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionEmptyClientRemoteCert)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1874,6 +1897,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionNoRemoteOrCaCertificate)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_4);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1901,6 +1925,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionNoCaCertificate)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_3);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1928,6 +1953,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionKeyNotFound)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1955,6 +1981,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionOwnCertNotFound)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -1982,6 +2009,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionCACertNotFound)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -2009,6 +2037,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionRemoteCertNotFound)
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -2039,6 +2068,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotKeyCertificateDotCert) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test1);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
     bool result = CS104_Connection_connect(connection);
@@ -2065,6 +2095,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotKeyCertificateDotCrt) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test2);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
     bool result = CS104_Connection_connect(connection);
@@ -2092,6 +2123,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotKeyCertificateDotP12) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test4);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
     bool result = CS104_Connection_connect(connection);
@@ -2118,6 +2150,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotKeyCertificateDotDer) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test5);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
     bool result = CS104_Connection_connect(connection);
@@ -2144,6 +2177,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotPemCertificateDotCert) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test6);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
     bool result = CS104_Connection_connect(connection);
@@ -2171,6 +2205,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotPemCertificateDotP12) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test9);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
     bool result = CS104_Connection_connect(connection);
@@ -2197,6 +2232,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionKeyDotPemCertificateDotDer) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test10);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
     bool result = CS104_Connection_connect(connection);
@@ -2229,6 +2265,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionNoChainValidation_CF_ST) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -2256,6 +2293,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionNoChainValidation_CF_SF) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_2);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -2291,6 +2329,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionOnlyKnownCertsFalse) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_test1);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -2343,6 +2382,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionNoServerCACertificate) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_4);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -2369,6 +2409,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionServerCACertificateDoesntExist) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_9);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -2395,6 +2436,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionWrongServerCACertificate) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data, tls_7);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -2432,6 +2474,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionStackRedundancyGroupsNotArray) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_3, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -2458,6 +2501,7 @@ TEST_F(ConnectionHandlerTest, TLSConnectionExchangeDataWrongDatapoints) {
     connection = CS104_Connection_createSecure("127.0.0.1", IEC_60870_5_104_DEFAULT_TLS_PORT, tlsConfig);
 
     iec104Server->setJsonConfig(protocol_stack_2, exchanged_data_2, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
