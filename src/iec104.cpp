@@ -282,14 +282,18 @@ IEC104Server::setJsonConfig(const std::string& stackConfig,
             }
         }
 
-        m_started = true;
-        m_monitoringThread = new std::thread(&IEC104Server::_monitoringThread, this);
 
         m_log->info("CS104 server initialized"); //LCOV_EXCL_LINE
     }
     else {
         m_log->error("Failed to create CS104 server instance"); //LCOV_EXCL_LINE
     }
+}
+
+void
+IEC104Server::startSlave(){
+    m_started = true;
+    m_monitoringThread = new std::thread(&IEC104Server::_monitoringThread, this);
 }
 
 /**
@@ -371,6 +375,7 @@ void
 IEC104Server::_monitoringThread()
 {
     bool southStatusRequested = false;
+    m_log->warn("Monitoring thread called");
 
     bool serverRunning = false;
 
@@ -492,9 +497,20 @@ IEC104Server::m_updateDataPoint(IEC104DataPoint* dp, IEC60870_5_TypeID typeId, D
         case M_ST_NA_1:
         case M_ST_TB_1:
             {
-                if (value && (value->getType() == DatapointValue::dataTagType::T_INTEGER)) {
-                    dp->m_value.stepPos.posValue = (int)(value->toInt() & 0x7f);
-                    dp->m_value.stepPos.transient = (unsigned int)((value->toInt() & 0x80) != 0);
+                if (value && (value->getType() == DatapointValue::dataTagType::T_STRING)) {
+                    int wtrVal;
+                    int transInd;
+                    std::string str = value->toStringValue();
+                    std::string cleaned_str = str.substr(1, str.length() - 2);
+                    std::size_t commaPos = cleaned_str.find(',');
+                    if(commaPos != std::string::npos) {
+                        std::string numStr = cleaned_str.substr(0, commaPos);
+                        std::string boolStr = cleaned_str.substr(commaPos+1);
+                        wtrVal = std::stoi(numStr);
+                        transInd = (boolStr == "true");
+                        dp->m_value.stepPos.posValue = (int)(wtrVal);
+                        dp->m_value.stepPos.transient = (unsigned int)(transInd);
+                    }
                 }
 
                 dp->m_value.stepPos.quality = quality;
@@ -1240,6 +1256,7 @@ IEC104Server::send(const vector<Reading*>& readings)
             }
             else if (dp->getName() == "data_object")
             {
+                m_log->debug("Send dp -> %s", dp->toJSONProperty().c_str());
                 readingsSent++;
 
                 if (CS104_Slave_isRunning(m_slave) == false) {

@@ -245,6 +245,20 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 }
 
 /**
+ * Plugin start with stored plugin_data
+ *
+ * @param handle	The plugin handle
+ * @param storedData	The stored plugin_data
+ */
+void plugin_start(const PLUGIN_HANDLE handle, const string& storedData){
+    Logger::getLogger()->warn("Plugin start called");
+    IEC104Server* iec104 = (IEC104Server*)handle;
+    if(iec104){
+        iec104->startSlave();
+    }
+}
+
+/**
  * Send Readings data to historian server
  */
 uint32_t plugin_send(const PLUGIN_HANDLE handle,

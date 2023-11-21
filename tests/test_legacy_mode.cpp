@@ -372,7 +372,7 @@ createSouthEvent(bool withConnx, std::string connxValue, bool withGiStatus, std:
 void
 LegacyModeTest::SendSouthEvent(std::string asset, bool withConnx, std::string connxValue, bool withGiStatus, std::string giStatusValue)
 {
-    Datapoint* southEvent = createSouthEvent(true, connxValue, false, giStatusValue);
+    Datapoint* southEvent = createSouthEvent(true, connxValue, withGiStatus, giStatusValue);
 
     auto* southEvents = new vector<Datapoint*>;
 
@@ -412,6 +412,7 @@ TEST_F(LegacyModeTest, ConnectWhileSouthNotStarted)
     iec104Server->registerControl(operateHandler);
 
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -421,11 +422,23 @@ TEST_F(LegacyModeTest, ConnectWhileSouthNotStarted)
 
     ASSERT_FALSE(CS104_Connection_connect(connection));
 
-    SendSouthEvent("CONSTAT-1", true, "started", false, "");
+    SendSouthEvent("CONSTAT-1", true, "started", true, "started");
 
     Thread_sleep(500); /* wait for the server to start */
 
     ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    SendSouthEvent("CONSTAT-1", false, "started", true, "in progress");
+
+    Thread_sleep(500); 
+
+    SendSouthEvent("CONSTAT-1", false, "started", true, "failed");
+
+    Thread_sleep(500); 
+
+    SendSouthEvent("CONSTAT-1", false, "started", true, "finished");
+    
+    Thread_sleep(500); 
 
     SendSouthEvent("CONSTAT-1", true, "not connected", true, "failed");
 
