@@ -85,7 +85,7 @@ static string protocol_stack = QUOTE({
             ]
         }
     });
-    
+
 static string tls = QUOTE({
         "tls_conf" : {
             "private_key" : "iec104_server.key",
@@ -139,6 +139,72 @@ static string exchanged_data = QUOTE({
                        {
                           "name":"iec104",
                           "address":"45-10005",
+                          "typeid":"C_SC_NA_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"CM2",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-14005",
+                          "typeid":"C_DC_NA_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"CM3",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-16005",
+                          "typeid":"C_RC_NA_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"CM4",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-18005",
+                          "typeid":"C_SE_NA_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"CM5",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-20005",
+                          "typeid":"C_SE_NB_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"CM6",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-22005",
+                          "typeid":"C_SE_NC_1",
+                          "termination_timeout": 3000
+                       }
+                    ]
+                },
+                {
+                    "label":"IEC104Command",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-23005",
                           "typeid":"C_SC_NA_1",
                           "termination_timeout": 3000
                        }
@@ -204,6 +270,66 @@ static string exchanged_data_2 = QUOTE({
                           "termination_timeout": 1
                        }
                     ]
+                },
+                {
+                    "label":"IEC104Command",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-24005",
+                          "typeid":"C_SE_TC_1",
+                          "termination_timeout": 1
+                       }
+                    ]
+                }
+            ]
+        }
+    });
+
+static string exchanged_data_3 = QUOTE({
+        "exchanged_data" : {
+            "name" : "iec104server",
+            "version" : "1.0",
+            "datapoints":[
+                {
+                    "label":"TS1",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-672",
+                          "typeid":"M_SP_NA_1"
+                       },
+                       {
+                          "name":"tase2",
+                          "address":"S_114562",
+                          "typeid":"Data_StateQTimeTagExtended"
+                       }
+                    ]
+                },
+                {
+                    "label":"TM1",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-984",
+                          "typeid":"M_ME_NA_1"
+                       },
+                       {
+                          "name":"tase2",
+                          "address":"S_114562",
+                          "typeid":"Data_RealQ"
+                       }
+                    ]
+                },
+                {
+                    "label":"IEC104Command",
+                    "protocols":[
+                       {
+                          "name":"iec104",
+                          "address":"45-24005",
+                          "typeid":"C_SC_TA_1"
+                       }
+                    ]
                 }
             ]
         }
@@ -240,6 +366,26 @@ protected:
     static int requestSouthStatusCalled;
 
     static int operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerSingleCommand(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerReceiveSetpointCommandShortWithTimestamp(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerReceiveSetpointCommandShortWithInvalidTimestamp(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerSinglePointCommandUnknownCA(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerReceiveUnexpectedDoublePointCommand(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerCommandAckTimeout(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerCommandActCon(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerCommandActConNegative(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerSinglePointCommandIOMissing(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerReceiveSinglePointCommandWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerDoublePointCommand(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerDoublePointCommandWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerMultipleSinglePointCommandWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerStepPointCommand(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerStepPointCommandWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerSetPointCommandNormalized(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerSetPointCommandNormalizedWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerSetPointCommandScaled(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerSetPointCommandScaledWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
+    static int operateHandlerSetPointCommandShort(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...);
 
     // TearDown is ran for every tests, so each variable are destroyed again
     void TearDown() override
@@ -290,6 +436,707 @@ int ControlTest::requestSouthStatusCalled;
 
 int ControlTest::operateHandler(char *operation, int paramCount, char* names[], char *parameters[], ControlDestination destination, ...)
 {
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerSingleCommand(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SC_NA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(23005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_EQ(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(1));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerReceiveSetpointCommandShortWithTimestamp(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SE_TC_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(24005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_NE(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(1.5f));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerReceiveSetpointCommandShortWithInvalidTimestamp(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    EXPECT_EQ(operation,"request_connection_status");
+    if(!strcmp(operation, "IEC104Command")) {
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerSinglePointCommandUnknownCA(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    EXPECT_EQ(operation,"request_connection_status");
+    if(!strcmp(operation, "IEC104Command")) {
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerReceiveUnexpectedDoublePointCommand(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    EXPECT_EQ(operation,"request_connection_status");
+    if(!strcmp(operation, "IEC104Command")) {
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerCommandAckTimeout(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SC_NA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(10005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_EQ(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(1));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerCommandActCon(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SC_NA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(10005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_EQ(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(1));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerCommandActConNegative(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SC_NA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(10005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_EQ(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(1));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerSinglePointCommandIOMissing(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    EXPECT_EQ(operation,"request_connection_status");
+    if(!strcmp(operation, "IEC104Command")) {
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerReceiveSinglePointCommandWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...) {
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SC_TA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(10005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_NE(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(1));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerDoublePointCommand(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...) {
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_DC_NA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(14005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_EQ(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(1));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerDoublePointCommandWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...) {
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_DC_TA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(14005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_NE(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(1));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerMultipleSinglePointCommandWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SC_TA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(10005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_NE(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(1));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerStepPointCommand(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_RC_NA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(16005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_EQ(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(0));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerStepPointCommandWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_RC_TA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(16005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_NE(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(0));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerSetPointCommandNormalized(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SE_NA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(18005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_EQ(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(0.000015));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerSetPointCommandNormalizedWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SE_TA_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(18005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_NE(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(0.000015));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerSetPointCommandScaled(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SE_NB_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(20005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_EQ(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(0));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerSetPointCommandScaledWithTime(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SE_TB_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(20005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_NE(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(0));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
+    if (!strcmp(operation, "request_connection_status")) {
+        requestSouthStatusCalled++;
+    }
+    else {
+        operateHandlerCalled++;
+    }
+
+    return 1;
+}
+
+int ControlTest::operateHandlerSetPointCommandShort(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+    printf("%s\n",operation);
+    if(!strcmp(operation, "IEC104Command")) {
+        EXPECT_EQ(9,paramCount);
+        printf("PARAM COUNT: %d\n", paramCount);
+        EXPECT_EQ(names[0],"co_type");
+        EXPECT_EQ(0,strcmp(parameters[0],"C_SE_NC_1"));
+        EXPECT_EQ(names[1],"co_ca");
+        EXPECT_EQ(parameters[1],to_string(45));
+        EXPECT_EQ(names[2],"co_ioa");
+        EXPECT_EQ(parameters[2],to_string(22005));
+        EXPECT_EQ(names[3],"co_cot");
+        EXPECT_EQ(parameters[3],to_string(7));
+        EXPECT_EQ(names[4],"co_negative");
+        EXPECT_EQ(parameters[4],to_string(0));
+        EXPECT_EQ(names[5],"co_se");
+        EXPECT_EQ(parameters[5],to_string(0));
+        EXPECT_EQ(names[6],"co_test");
+        EXPECT_EQ(parameters[6],to_string(0));
+        EXPECT_EQ(names[7],"co_ts");
+        EXPECT_EQ(parameters[7],"");
+        EXPECT_EQ(names[8],"co_value");
+        EXPECT_EQ(parameters[8],to_string(0.0f));
+        for(int i = 0; i < paramCount; i++) {
+            printf("PARAM: %s: %s\n", names[i], parameters[i]);
+        }
+
+    }
     if (!strcmp(operation, "request_connection_status")) {
         requestSouthStatusCalled++;
     }
@@ -355,7 +1202,7 @@ createCommandAck(const char* type, int ca, int ioa, int cot, bool negative)
     return dp;
 }
 
-void 
+void
 ControlTest::ForwardCommandAck(const char* cmdName, const char* type, int ca, int ioa, int cot, bool negative)
 {
     auto* dataobjects = new vector<Datapoint*>;
@@ -377,6 +1224,7 @@ ControlTest::ForwardCommandAck(const char* cmdName, const char* type, int ca, in
 TEST_F(ControlTest, CreateReading)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
     auto* dataobjects = new vector<Datapoint*>;
 
@@ -399,8 +1247,9 @@ TEST_F(ControlTest, CreateReading)
 TEST_F(ControlTest, ReceiveSinglePointCommand)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
-    iec104Server->registerControl(operateHandler);
+    iec104Server->registerControl(operateHandlerSingleCommand);
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -408,7 +1257,7 @@ TEST_F(ControlTest, ReceiveSinglePointCommand)
 
     CS104_Connection_sendStartDT(connection);
 
-    InformationObject sc = (InformationObject)SingleCommand_create(NULL, 10005, true, false, 0);
+    InformationObject sc = (InformationObject)SingleCommand_create(NULL, 23005, true, false, 0);
 
     CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
 
@@ -422,8 +1271,9 @@ TEST_F(ControlTest, ReceiveSinglePointCommand)
 TEST_F(ControlTest, ReceiveSetpointCommandShortWithTimestamp)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data_2, tls);
+    iec104Server->startSlave();
 
-    iec104Server->registerControl(operateHandler);
+    iec104Server->registerControl(operateHandlerReceiveSetpointCommandShortWithTimestamp);
 
     iec104Server->ActConTimeout(200);
     iec104Server->ActTermTimeout(200);
@@ -436,7 +1286,7 @@ TEST_F(ControlTest, ReceiveSetpointCommandShortWithTimestamp)
 
     CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
 
-    InformationObject sc = (InformationObject)SetpointCommandShortWithCP56Time2a_create(NULL, 10010, 1.5f, false, 0, timestamp);
+    InformationObject sc = (InformationObject)SetpointCommandShortWithCP56Time2a_create(NULL, 24005, 1.5f, false, 0, timestamp);
 
     CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
 
@@ -452,8 +1302,9 @@ TEST_F(ControlTest, ReceiveSetpointCommandShortWithTimestamp)
 TEST_F(ControlTest, ReceiveSetpointCommandShortWithInvalidTimestamp)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data_2, tls);
+    iec104Server->startSlave();
 
-    iec104Server->registerControl(operateHandler);
+    iec104Server->registerControl(operateHandlerReceiveSetpointCommandShortWithInvalidTimestamp);
 
     iec104Server->ActConTimeout(200);
     iec104Server->ActTermTimeout(200);
@@ -466,7 +1317,7 @@ TEST_F(ControlTest, ReceiveSetpointCommandShortWithInvalidTimestamp)
 
     CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, 0);
 
-    InformationObject sc = (InformationObject)SetpointCommandShortWithCP56Time2a_create(NULL, 10010, 1.5f, false, 0, timestamp);
+    InformationObject sc = (InformationObject)SetpointCommandShortWithCP56Time2a_create(NULL, 24005, 1.5f, false, 0, timestamp);
 
     CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
 
@@ -485,11 +1336,14 @@ TEST_F(ControlTest, ReceiveSetpointCommandShortWithInvalidTimestamp)
     ASSERT_TRUE(actConNegative);
 }
 
+
+
 TEST_F(ControlTest, SinglePointCommandUnknownCA)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
-    iec104Server->registerControl(operateHandler);
+    iec104Server->registerControl(operateHandlerSinglePointCommandUnknownCA);
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -511,8 +1365,9 @@ TEST_F(ControlTest, SinglePointCommandUnknownCA)
 TEST_F(ControlTest, ReceiveUnexpectedDoublePointCommand)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
-    iec104Server->registerControl(operateHandler);
+    iec104Server->registerControl(operateHandlerReceiveUnexpectedDoublePointCommand);
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -534,8 +1389,9 @@ TEST_F(ControlTest, ReceiveUnexpectedDoublePointCommand)
 TEST_F(ControlTest, CommandAckTimeout)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
-    iec104Server->registerControl(operateHandler);
+    iec104Server->registerControl(operateHandlerCommandAckTimeout);
 
     iec104Server->ActConTimeout(200);
     iec104Server->ActTermTimeout(200);
@@ -560,8 +1416,9 @@ TEST_F(ControlTest, CommandAckTimeout)
 TEST_F(ControlTest, CommandActCon)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
-    iec104Server->registerControl(operateHandler);
+    iec104Server->registerControl(operateHandlerCommandActCon);
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -601,8 +1458,9 @@ TEST_F(ControlTest, CommandActCon)
 TEST_F(ControlTest, CommandActConNegative)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
-    iec104Server->registerControl(operateHandler);
+    iec104Server->registerControl(operateHandlerCommandActConNegative);
 
     iec104Server->ActConTimeout(1000);
     iec104Server->ActTermTimeout(1000);
@@ -637,8 +1495,9 @@ TEST_F(ControlTest, CommandActConNegative)
 TEST_F(ControlTest, SinglePointCommandIOMissing)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
-    iec104Server->registerControl(operateHandler);
+    iec104Server->registerControl(operateHandlerSinglePointCommandIOMissing);
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -664,8 +1523,9 @@ TEST_F(ControlTest, SinglePointCommandIOMissing)
 TEST_F(ControlTest, ReceiveSinglePointCommandWithTime)
 {
     iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
 
-    iec104Server->registerControl(operateHandler);
+    iec104Server->registerControl(operateHandlerReceiveSinglePointCommandWithTime);
 
     Thread_sleep(500); /* wait for the server to start */
 
@@ -699,4 +1559,357 @@ TEST_F(ControlTest, ReceiveSinglePointCommandWithTime)
     ASSERT_EQ(1, operateHandlerCalled);
 
     free(timestamp);
+}
+
+TEST_F(ControlTest, ReceiveDoublePointCommand)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
+
+    iec104Server->registerControl(operateHandlerDoublePointCommand);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    InformationObject sc = (InformationObject)DoubleCommand_create(NULL, 14005, 1, false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+}
+
+TEST_F(ControlTest, ReceiveDoublePointCommandWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
+
+    iec104Server->registerControl(operateHandlerDoublePointCommandWithTime);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject sc = (InformationObject)DoubleCommandWithCP56Time2a_create(NULL, 14005, true, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    sc = (InformationObject)DoubleCommandWithCP56Time2a_create(NULL, 14005, true, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc);
+
+    InformationObject_destroy(sc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    free(timestamp);
+}
+
+
+TEST_F(ControlTest, ReceiveMultipleSinglePointCommandWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
+
+    iec104Server->registerControl(operateHandlerMultipleSinglePointCommandWithTime);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject sc1 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    InformationObject sc2 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    InformationObject sc3 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    InformationObject sc4 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    InformationObject sc5 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc1);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc2);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc3);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc4);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc5);
+
+    InformationObject_destroy(sc1);
+    InformationObject_destroy(sc2);
+    InformationObject_destroy(sc3);
+    InformationObject_destroy(sc4);
+    InformationObject_destroy(sc5);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(5, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    sc1 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    sc2 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    sc3 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    sc4 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+    sc5 = (InformationObject)SingleCommandWithCP56Time2a_create(NULL, 10005, true, false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc1);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc2);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc3);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc4);
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, sc5);
+
+    InformationObject_destroy(sc1);
+    InformationObject_destroy(sc2);
+    InformationObject_destroy(sc3);
+    InformationObject_destroy(sc4);
+    InformationObject_destroy(sc5);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(5, operateHandlerCalled);
+
+    free(timestamp);
+}
+
+TEST_F(ControlTest, ReceiveStepPointCommand)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
+
+    iec104Server->registerControl(operateHandlerStepPointCommand);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    InformationObject rc = (InformationObject)StepCommand_create(NULL, 16005, IEC60870_STEP_INVALID_0 , false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, rc);
+
+    InformationObject_destroy(rc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+}
+
+
+TEST_F(ControlTest, ReceiveStepPointCommandWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
+
+    iec104Server->registerControl(operateHandlerStepPointCommandWithTime);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject rc = (InformationObject)StepCommandWithCP56Time2a_create(NULL, 16005, IEC60870_STEP_INVALID_0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, rc);
+
+    InformationObject_destroy(rc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    rc = (InformationObject)StepCommandWithCP56Time2a_create(NULL, 14005, IEC60870_STEP_INVALID_0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, rc);
+
+    InformationObject_destroy(rc);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    free(timestamp);
+}
+
+TEST_F(ControlTest, ReceiveSetPointCommandNormalized)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
+
+    iec104Server->registerControl(operateHandlerSetPointCommandNormalized);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    InformationObject se = (InformationObject)SetpointCommandNormalized_create(NULL, 18005, 0 , false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+}
+
+TEST_F(ControlTest, ReceiveSetPointCommandNormalizedWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
+
+    iec104Server->registerControl(operateHandlerSetPointCommandNormalizedWithTime);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject se = (InformationObject)SetpointCommandNormalizedWithCP56Time2a_create(NULL, 18005, 0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    se = (InformationObject)SetpointCommandNormalizedWithCP56Time2a_create(NULL, 18005, 0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    free(timestamp);
+}
+
+
+TEST_F(ControlTest, ReceiveSetPointCommandScaled)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
+
+    iec104Server->registerControl(operateHandlerSetPointCommandScaled);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    InformationObject se = (InformationObject)SetpointCommandScaled_create(NULL, 20005, 0 , false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+}
+
+
+TEST_F(ControlTest, ReceiveSetPointCommandScaledWithTime)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
+
+    iec104Server->registerControl(operateHandlerSetPointCommandScaledWithTime);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    CP56Time2a timestamp = CP56Time2a_createFromMsTimestamp(NULL, Hal_getTimeInMs());
+
+    InformationObject se = (InformationObject)SetpointCommandScaledWithCP56Time2a_create(NULL, 20005, 0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    /* wait for time to become to old for configured cmd_exec_timeout parameter */
+    Thread_sleep(1200);
+
+    se = (InformationObject)SetpointCommandScaledWithCP56Time2a_create(NULL, 20005, 0 , false, 0, timestamp);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
+
+    free(timestamp);
+}
+
+TEST_F(ControlTest, ReceiveSetPointCommandShort)
+{
+    iec104Server->setJsonConfig(protocol_stack, exchanged_data, tls);
+    iec104Server->startSlave();
+
+    iec104Server->registerControl(operateHandlerSetPointCommandShort);
+
+    Thread_sleep(500); /* wait for the server to start */
+
+    ASSERT_TRUE(CS104_Connection_connect(connection));
+
+    CS104_Connection_sendStartDT(connection);
+
+    InformationObject se = (InformationObject)SetpointCommandShort_create(NULL, 22005, 0 , false, 0);
+
+    CS104_Connection_sendProcessCommandEx(connection, CS101_COT_ACTIVATION, 45, se);
+
+    InformationObject_destroy(se);
+
+    Thread_sleep(500);
+
+    ASSERT_EQ(1, operateHandlerCalled);
 }
