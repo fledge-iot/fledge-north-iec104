@@ -7,25 +7,18 @@
  *
  * Author: Akli Rahmoun <akli.rahmoun at rte-france.com>
  */
+
 #include <plugin_api.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <strings.h>
-#include <string>
-#include <logger.h>
-#include <plugin_exception.h>
-#include <iostream>
-#include <config_category.h>
 #include <version.h>
-#include <iec104.h>
+#include <config_category.h>
+
+#include "iec104.h"
+#include "iec104_utility.hpp"
 
 
 using namespace std;
-using namespace rapidjson;
 
 extern "C" {
-
-#define PLUGIN_NAME "iec104"
 
 /**
  * Plugin specific default configuration
@@ -223,6 +216,8 @@ static PLUGIN_INFORMATION info = {
  */
 PLUGIN_INFORMATION *plugin_info()
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - plugin_info -";
+    Iec104Utility::log_info("%s IEC104 Config is %s", beforeLog.c_str(), info.config);
 	return &info;
 }
 
@@ -233,13 +228,23 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
-    Logger::getLogger()->info("Initializing the plugin");
+    std::string beforeLog = Iec104Utility::PluginName + " - plugin_init -";
+    Iec104Utility::log_info("%s Initializing the plugin", beforeLog.c_str());
+
+    if (configData == nullptr) {
+        Iec104Utility::log_warn("%s No config provided for plugin, using default config", beforeLog.c_str());
+        auto pluginInfo = plugin_info();
+        configData = new ConfigCategory("newConfig", pluginInfo->config);
+        configData->setItemsValueFromDefault();
+    }
 
 	IEC104Server* iec104 = new IEC104Server();
 
     if (iec104) {
     	iec104->configure(configData);
     }
+
+    Iec104Utility::log_info("%s Plugin initialized", beforeLog.c_str());
 
 	return (PLUGIN_HANDLE)iec104;
 }
@@ -251,7 +256,8 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
  * @param storedData	The stored plugin_data
  */
 void plugin_start(const PLUGIN_HANDLE handle, const string& storedData){
-    Logger::getLogger()->warn("Plugin start called");
+    std::string beforeLog = Iec104Utility::PluginName + " - plugin_start -";
+    Iec104Utility::log_info("%s Plugin start called", beforeLog.c_str());
     IEC104Server* iec104 = (IEC104Server*)handle;
     if(iec104){
         iec104->startSlave();
@@ -264,7 +270,10 @@ void plugin_start(const PLUGIN_HANDLE handle, const string& storedData){
 uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		     const vector<Reading *>& readings)
 {
-	IEC104Server* iec104 = (IEC104Server *)handle;
+	std::string beforeLog = Iec104Utility::PluginName + " - plugin_send -";
+    Iec104Utility::log_info("%s Try sending %d readings to IEC104 server", beforeLog.c_str(), readings.size());
+
+    IEC104Server* iec104 = (IEC104Server *)handle;
 
 	return iec104->send(readings);
 }
@@ -274,7 +283,8 @@ void plugin_register(PLUGIN_HANDLE handle,
 		bool ( *write)(const char *name, const char *value, ControlDestination destination, ...),
 		int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...))
 {
-    Logger::getLogger()->info("plugin_register");
+    std::string beforeLog = Iec104Utility::PluginName + " - plugin_register -";
+    Iec104Utility::log_info("%s Received new write and operation callbacks to regiter", beforeLog.c_str());
 
     IEC104Server* iec104 = (IEC104Server*)handle;
 
@@ -290,7 +300,10 @@ void plugin_register(PLUGIN_HANDLE handle,
  */
 void plugin_shutdown(PLUGIN_HANDLE handle)
 {
-	IEC104Server* iec104 = (IEC104Server*)handle;
+	std::string beforeLog = Iec104Utility::PluginName + " - plugin_shutdown -";
+    Iec104Utility::log_info("%s Shutting down the plugin...", beforeLog.c_str());
+
+    IEC104Server* iec104 = (IEC104Server*)handle;
 
 	iec104->stop();
 

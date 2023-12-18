@@ -1,6 +1,13 @@
+#include <sstream>
+#include <algorithm>
+
 #include <arpa/inet.h>
+#include <iec104_datapoint.hpp>
+#include <rapidjson/document.h>
+#include <rapidjson/error/en.h>
 
 #include "iec104_config.hpp"
+#include "iec104_utility.hpp"
 
 using namespace rapidjson;
 
@@ -42,8 +49,6 @@ IEC104Config::deleteExchangeDefinitions()
 IEC104Config::SouthPluginMonitor::SouthPluginMonitor(std::string& assetName)
 {
     m_assetName = assetName;
-    m_giStatus = GiStatus::IDLE;
-    m_connxStatus = ConnectionStatus::NOT_CONNECTED;
 }
 
 IEC104Config::~IEC104Config()
@@ -56,7 +61,7 @@ IEC104Config::~IEC104Config()
 }
 
 bool
-IEC104Config::isValidIPAddress(const string& addrStr)
+IEC104Config::isValidIPAddress(const std::string& addrStr)
 {
     // see https://stackoverflow.com/questions/318236/how-do-you-validate-that-a-string-is-a-valid-ipv4-address-in-c
     struct sockaddr_in sa;
@@ -66,39 +71,38 @@ IEC104Config::isValidIPAddress(const string& addrStr)
 }
 
 void
-IEC104Config::importProtocolConfig(const string& protocolConfig)
+IEC104Config::importProtocolConfig(const std::string& protocolConfig)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Config::importProtocolConfig -";
     m_protocolConfigComplete = false;
 
     Document document;
 
     if (document.Parse(const_cast<char*>(protocolConfig.c_str())).HasParseError()) {
-        Logger::getLogger()->fatal("Parsing error in protocol configuration");
-
-        printf("Parsing error in protocol configuration\n");
-
+        Iec104Utility::log_fatal("%s Parsing error in protocol_stack json, offset %u: %s", beforeLog.c_str(),
+                                    static_cast<unsigned>(document.GetErrorOffset()), GetParseError_En(document.GetParseError()));
         return;
     }
 
     if (!document.IsObject()) {
+        Iec104Utility::log_fatal("%s Root is not an object", beforeLog.c_str());
         return;
     }
 
     if (!document.HasMember("protocol_stack") || !document["protocol_stack"].IsObject()) {
+        Iec104Utility::log_fatal("%s protocol_stack does not exist or is not an object", beforeLog.c_str());
         return;
     }
 
     const Value& protocolStack = document["protocol_stack"];
 
     if (!protocolStack.HasMember("transport_layer") || !protocolStack["transport_layer"].IsObject()) {
-        Logger::getLogger()->fatal("transport layer configuration is missing");
-    
+        Iec104Utility::log_fatal("%s transport_layer does not exist or is not an object", beforeLog.c_str());
         return;
     }
 
     if (!protocolStack.HasMember("application_layer") || !protocolStack["application_layer"].IsObject()) {
-        Logger::getLogger()->fatal("appplication layer configuration is missing");
-    
+        Iec104Utility::log_fatal("%s application_layer does not exist or is not an object", beforeLog.c_str());
         return;
     }
 
@@ -109,8 +113,12 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
         const Value& southMonitoring = protocolStack["south_monitoring"];
 
         if (southMonitoring.IsArray()) {
-            for (const Value& southMonInst : southMonitoring.GetArray()) {;
+            for (const Value& southMonInst : southMonitoring.GetArray()) {
 
+                if (!southMonInst.IsObject()) {
+                    Iec104Utility::log_error("%s south_monitoring element is not an object", beforeLog.c_str());
+                    continue;
+                }
                 if (southMonInst.HasMember("asset")) {
                     if (southMonInst["asset"].IsString()) {
                         std::string assetName = southMonInst["asset"].GetString();
@@ -120,13 +128,16 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                         m_monitoredSouthPlugins.push_back(monitor);
                     }
                     else {
-                        Logger::getLogger()->error("south_monitoring \"asset\" element has wrong type");
+                        Iec104Utility::log_error("%s south_monitoring \"asset\" element is not a string", beforeLog.c_str());
                     }
                 }
                 else {
-                    Logger::getLogger()->error("south_monitoring is missing \"asset\" element");
+                    Iec104Utility::log_error("%s south_monitoring is missing \"asset\" element", beforeLog.c_str());
                 }
             }
+        }
+        else {
+            Iec104Utility::log_error("%s south_monitoring is not an array", beforeLog.c_str());
         }
     }
 
@@ -138,50 +149,66 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
 
             for (const Value& redGroup : redundancyGroups.GetArray()) {
                 
-                char* redGroupName = NULL;
+                if (!redGroup.IsObject()) {
+                    Iec104Utility::log_error("%s redundancy_groups element is not an object -> ignore", beforeLog.c_str());
+                    continue;
+                }
+                
+                char* redGroupName = nullptr;
 
                 if (redGroup.HasMember("rg_name")) {
                     if (redGroup["rg_name"].IsString()) {
-                        string rgName = redGroup["rg_name"].GetString();
+                        std::string rgName = redGroup["rg_name"].GetString();
 
                         redGroupName = strdup(rgName.c_str());
                     }
                 }
+                if (redGroupName == nullptr) {
+                    Iec104Utility::log_error("%s rg_name does not exist or is not a string -> ignore", beforeLog.c_str());
+                    continue;
+                }
 
                 CS104_RedundancyGroup redundancyGroup = CS104_RedundancyGroup_create(redGroupName);
-          
-                printf("Adding red group with name: %s\n", redGroupName);
+                
+                Iec104Utility::log_debug("%s Adding red group with name: %s", beforeLog.c_str(), redGroupName);
 
                 free(redGroupName);
 
-                if (redGroup.HasMember("connections")) {
-                    if (redGroup["connections"].IsArray()) {
-                        for (const Value& con : redGroup["connections"].GetArray()) {
-                            if (con.HasMember("clt_ip")) {
-                                if (con["clt_ip"].IsString()) {
-                                    string cltIp = con["clt_ip"].GetString();
+                if (redGroup.HasMember("connections") && redGroup["connections"].IsArray()) {
+                    for (const Value& con : redGroup["connections"].GetArray()) {
+                        if(!con.IsObject()) {
+                            Iec104Utility::log_error("%s  connections element is not an object -> ignore", beforeLog.c_str());
+                            continue;
+                        }
+                        if (con.HasMember("clt_ip") && con["clt_ip"].IsString()) {
+                            std::string cltIp = con["clt_ip"].GetString();
 
-                                    if (isValidIPAddress(cltIp)) {
-                                        CS104_RedundancyGroup_addAllowedClient(redundancyGroup, cltIp.c_str());
-
-                                        printf("  add to group: %s\n", cltIp.c_str());
-                                    }
-                                    else {
-                                        printf("  %s is not a valid IP address -> ignore\n", cltIp.c_str());
-                                        Logger::getLogger()->error("s is not a valid IP address -> ignore", cltIp.c_str());
-                                    }
-
-                                }
+                            if (isValidIPAddress(cltIp)) {
+                                CS104_RedundancyGroup_addAllowedClient(redundancyGroup, cltIp.c_str());
+                                Iec104Utility::log_debug("%s  add to group: %s", beforeLog.c_str(), cltIp.c_str());
+                            }
+                            else {
+                                Iec104Utility::log_error("%s  %s is not a valid IP address -> ignore", beforeLog.c_str(),
+                                                        cltIp.c_str());
                             }
                         }
+                        else {
+                            Iec104Utility::log_error("%s  clt_ip does not exist or is not a string -> ignore",
+                                                    beforeLog.c_str());
+                            continue;
+                        }
                     }
+                }
+                else {
+                    Iec104Utility::log_debug("%s  connections does not exist or is not an array -> adding fallback group",
+                                            beforeLog.c_str());
                 }
 
                 m_configuredRedundancyGroups.push_back(redundancyGroup);
             }
         }
         else {
-            Logger::getLogger()->fatal("redundancy_groups is not an array -> ignore redundancy groups");
+            Iec104Utility::log_fatal("%s redundancy_groups is not an array -> ignore redundancy groups", beforeLog.c_str());
         }
     }
 
@@ -196,8 +223,12 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_mode = IEC104Config::Mode::CONNECT_IF_SOUTH_CONNX_STARTED;
             }
             else {
-                Logger::getLogger()->warn("transport_layer.mode has unknown value -> using mode: connect always");
+                Iec104Utility::log_warn("%s transport_layer.mode has unknown value '%s' -> using mode: connect always",
+                                        beforeLog.c_str(), modeValue.c_str());
             }
+        }
+        else {
+            Iec104Utility::log_warn("%s transport_layer.mode is not a string -> using mode: connect always", beforeLog.c_str());
         }
     } 
 
@@ -209,12 +240,13 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_tcpPort = tcpPort;
             }
             else {
-                Logger::getLogger()->warn("transport_layer.port value out of range-> using default port");
+                Iec104Utility::log_warn("%s transport_layer.port value out of range [1..65535]: %d -> using default port (%d)",
+                                        beforeLog.c_str(), tcpPort, m_defaultTcpPort);
             }
         }
         else {
-            printf("transport_layer.port has invalid type -> using default port\n");
-            Logger::getLogger()->warn("transport_layer.port has invalid type -> using default port");
+            Iec104Utility::log_warn("%s transport_layer.port in not an integer -> using default port (%d)", beforeLog.c_str(),
+                                    m_defaultTcpPort);
         }
     }
 
@@ -226,12 +258,12 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_k = kValue;
             }
             else {
-                Logger::getLogger()->warn("transport_layer.k_value value out of range-> using default value");
+                Iec104Utility::log_warn("%s transport_layer.k_value value out of range [1..32767]: %d -> using default value (%d)",
+                                        beforeLog.c_str(), kValue, m_k);
             }
         }
         else {
-            printf("transport_layer.k_value has invalid type -> using default value\n");
-            Logger::getLogger()->warn("transport_layer.k_value has invalid type -> using default value");
+            Iec104Utility::log_warn("%s transport_layer.k_value is not an integer -> using default value (%d)", beforeLog.c_str(), m_k);
         }
     }
 
@@ -243,12 +275,12 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_w = wValue;
             }
             else {
-                Logger::getLogger()->warn("transport_layer.w_value value out of range-> using default value");
+                Iec104Utility::log_warn("%s transport_layer.w_value value out of range [1..32767]: %d -> using default value (%d)",
+                                        beforeLog.c_str(), wValue, m_w);
             }
         }
         else {
-            printf("transport_layer.w_value has invalid type -> using default value\n");
-            Logger::getLogger()->warn("transport_layer.w_value has invalid type -> using default value");
+            Iec104Utility::log_warn("%s transport_layer.w_value is not an integer -> using default value (%d)", beforeLog.c_str(), m_w);
         }
     }
 
@@ -260,12 +292,13 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_t0 = t0Timeout;
             }
             else {
-                Logger::getLogger()->warn("transport_layer.t0_timeout value out of range-> using default value");
+                Iec104Utility::log_warn("%s transport_layer.t0_timeout value out of range [1..255]: %d -> using default value (%d)",
+                                        beforeLog.c_str(), t0Timeout, m_t0);
             }
         }
         else {
-            printf("transport_layer.t0_timeout has invalid type -> using default value\n");
-            Logger::getLogger()->warn("transport_layer.t0_timeout has invalid type -> using default value");
+            Iec104Utility::log_warn("%s transport_layer.t0_timeout is not an integer -> using default value (%d)",
+                                    beforeLog.c_str(), m_t0);
         }
     }
 
@@ -277,12 +310,13 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_t1 = t1Timeout;
             }
             else {
-                Logger::getLogger()->warn("transport_layer.t1_timeout value out of range-> using default value");
+                Iec104Utility::log_warn("%s transport_layer.t1_timeout value out of range [1..255]: %d -> using default value (%d)",
+                                        beforeLog.c_str(), t1Timeout, m_t1);
             }
         }
         else {
-            printf("transport_layer.t1_timeout has invalid type -> using default value\n");
-            Logger::getLogger()->warn("transport_layer.t1_timeout has invalid type -> using default value");
+            Iec104Utility::log_warn("%s transport_layer.t1_timeout is not an integer -> using default value (%d)",
+                                    beforeLog.c_str(), m_t1);
         }
     }
 
@@ -294,12 +328,13 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_t2 = t2Timeout;
             }
             else {
-                Logger::getLogger()->warn("transport_layer.t2_timeout value out of range-> using default value");
+                Iec104Utility::log_warn("%s transport_layer.t2_timeout value out of range [1..255]: %d -> using default value (%d)",
+                                        beforeLog.c_str(), t2Timeout, m_t2);
             }
         }
         else {
-            printf("transport_layer.t2_timeout has invalid type -> using default value\n");
-            Logger::getLogger()->warn("transport_layer.t2_timeout has invalid type -> using default value");
+            Iec104Utility::log_warn("%s transport_layer.t2_timeout is not an integer -> using default value (%d)",
+                                    beforeLog.c_str(), m_t2);
         }
     }
 
@@ -311,12 +346,13 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_t3 = t3Timeout;
             }
             else {
-                Logger::getLogger()->warn("transport_layer.t3_timeout value out of range-> using default value");
+                Iec104Utility::log_warn("%s transport_layer.t3_timeout value out of range [0..+Inf]: %d -> using default value (%d)",
+                                        beforeLog.c_str(), t3Timeout, m_t3);
             }
         }
         else {
-            printf("transport_layer.t3_timeout has invalid type -> using default value\n");
-            Logger::getLogger()->warn("transport_layer.t3_timeout has invalid type -> using default value");
+            Iec104Utility::log_warn("%s transport_layer.t3_timeout is not an integer -> using default value (%d)",
+                                    beforeLog.c_str(), m_t3);
         }
     }
 
@@ -325,26 +361,20 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
             m_useTls = transportLayer["tls"].GetBool();
         }
         else {
-            printf("transport_layer.tls has invalid type -> not using TLS\n");
-            Logger::getLogger()->warn("transport_layer.tls has invalid type -> not using TLS");
+            Iec104Utility::log_warn("%s transport_layer.tls is not a bool -> not using TLS", beforeLog.c_str());
         }
     }
 
     if (transportLayer.HasMember("srv_ip")) {
         if (transportLayer["srv_ip"].IsString()) {
-
             if (isValidIPAddress(transportLayer["srv_ip"].GetString())) {
                 m_ip = transportLayer["srv_ip"].GetString();
-
-                printf("Using local IP address: %s\n", m_ip.c_str());
-
+                Iec104Utility::log_info("%s Using local IP address: %s", beforeLog.c_str(), m_ip.c_str());
                 m_bindOnIp = true;
             }
             else {
-                printf("transport_layer.srv_ip is not a valid IP address -> ignore\n");
-                Logger::getLogger()->warn("transport_layer.srv_ip has invalid type -> not using TLS");
+                Iec104Utility::log_warn("%s transport_layer.srv_ip is not a string -> not using TLS", beforeLog.c_str());
             }
-
         }
     }
 
@@ -356,13 +386,13 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_caSize = caSize;
             }
             else {
-                printf("application_layer.ca_asdu_size has invalid value -> using default value (2)\n");
-                Logger::getLogger()->warn("application_layer.ca_asdu_size has invalid value -> using default value (2");
+                Iec104Utility::log_warn("%s application_layer.ca_asdu_size value out of range [1..2]: %d -> using default value (%d)",
+                                        beforeLog.c_str(), caSize, m_caSize);
             }
         }
         else {
-            printf("application_layer.ca_asdu_size has invalid type -> using default value (2)\n");
-            Logger::getLogger()->warn("application_layer.ca_asdu_size has invalid type -> using default value (2)");
+            Iec104Utility::log_warn("%s application_layer.ca_asdu_size is not an integer -> using default value (%d)",
+                                    beforeLog.c_str(), m_caSize);
         }
     }
 
@@ -374,13 +404,13 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_ioaSize = ioaSize;
             }
             else {
-                printf("application_layer.ioaddr_size has invalid value -> using default value (3)\n");
-                Logger::getLogger()->warn("application_layer.ioaddr_size has invalid value -> using default value (3)");
+                Iec104Utility::log_warn("%s application_layer.ioaddr_size value out of range [1..3]: %d -> using default value (%d)",
+                                        beforeLog.c_str(), ioaSize, m_ioaSize);
             }
         }
         else {
-            printf("application_layer.ioaddr_size has invalid type -> using default value (3)\n");
-            Logger::getLogger()->warn("application_layer.ioaddr_size has invalid type -> using default value (3)");
+            Iec104Utility::log_warn("%s application_layer.ioaddr_size is not an integer -> using default value (%d)",
+                                    beforeLog.c_str(), m_ioaSize);
         }
     }
 
@@ -392,13 +422,13 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
                 m_asduSize = asduSize;
             }
             else {
-                printf("application_layer.asdu_size has invalid value -> using default value (3)\n");
-                Logger::getLogger()->warn("application_layer.asdu_size has invalid value -> using default value (3)");
+                Iec104Utility::log_warn("%s application_layer.asdu_size value out of range [0,11..253]: %d -> using default value (%d)",
+                                        beforeLog.c_str(), asduSize, m_asduSize);
             }
         }
         else {
-            printf("application_layer.asdu_size has invalid type -> using default value (3)\n");
-            Logger::getLogger()->warn("application_layer.asdu_size has invalid type -> using default value (3)");
+            Iec104Utility::log_warn("%s application_layer.asdu_size is not an integer -> using default value (%d)",
+                                    beforeLog.c_str(), m_asduSize);
         }
     }
 
@@ -407,107 +437,110 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
             m_timeSync = applicationLayer["time_sync"].GetBool();
         }
         else {
-            printf("application_layer.time_sync has invalid type -> using default value (false)\n");
-            Logger::getLogger()->warn("application_layer.time_sync has invalid type -> using default value (false)");
+            Iec104Utility::log_warn("%s application_layer.time_sync is not a bool -> using default value (%s)", beforeLog.c_str(),
+                                    (m_timeSync?"true":"false"));
         }
     }
 
     if (applicationLayer.HasMember("filter_list")) {
         if (applicationLayer["filter_list"].IsArray()) {
-
             for (const Value& filter : applicationLayer["filter_list"].GetArray()) {
                 if (filter.IsObject()) {
-                    if (filter.HasMember("orig_addr")) {
-                        if (filter["orig_addr"].IsInt()) {
-                            int oaValue = filter["orig_addr"].GetInt();
+                    if (filter.HasMember("orig_addr") && filter["orig_addr"].IsInt()) {
+                        int oaValue = filter["orig_addr"].GetInt();
 
-                            if (oaValue >= 0 && oaValue < 256) {
-                                m_allowedOriginators[oaValue] = oaValue;
-                                m_filterOriginators = true;
-                            }
-                            else {
-                                printf("application_layer.filter_list: invalid OA address value\n");
-                                Logger::getLogger()->error("application_layer.filter_list: invalid OA address value");
-                            }
+                        if (oaValue >= 0 && oaValue < 256) {
+                            m_allowedOriginators[oaValue] = oaValue;
+                            m_filterOriginators = true;
                         }
+                        else {
+                            Iec104Utility::log_error("%s application_layer.filter_list: OA address value out of range [1..255]: %d",
+                                                    beforeLog.c_str(), oaValue);
+                        }
+                    }
+                    else {
+                        Iec104Utility::log_error("%s application_layer.filter_list: orig_addr does not exist or is not an integer",
+                                                    beforeLog.c_str());
                     }
                 }
                 else {
-                    printf("application_layer.filter_list element not an object\n");
-                    Logger::getLogger()->error("application_layer.filter_list element not an object");
+                    Iec104Utility::log_error("%s application_layer.filter_list element is not an object", beforeLog.c_str());
                 }
             }
-                
         }
         else {
-            printf("application_layer.filter_list is not an array\n");
-            Logger::getLogger()->error("application_layer.filter_list is not an array");
+            Iec104Utility::log_error("%s application_layer.filter_list is not an array", beforeLog.c_str());
         }
     }
 
     if (applicationLayer.HasMember("asdu_queue_size")) {
         if (applicationLayer["asdu_queue_size"].IsInt()) {
             int asduQueueSize = applicationLayer["asdu_queue_size"].GetInt();
-
             if (asduQueueSize > 0) {
                 m_asduQueueSize = asduQueueSize;
             }
             else {
-                printf("application_layer.asdu_queue_size has invalid value -> using default value (100)\n");
-                Logger::getLogger()->warn("application_layer.asdu_queue_size has invalid value -> using default value (100)");
+                Iec104Utility::log_warn(
+                    "%s application_layer.asdu_queue_size value out of range [1..+Inf]: %d -> using default value (%d)",             
+                    beforeLog.c_str(), asduQueueSize, m_asduQueueSize);
             }
         }
         else {
-            printf("application_layer.asdu_queue_size has invalid type -> using default value (100)\n");
-            Logger::getLogger()->warn("application_layer.asdu_queue_size has invalid type -> using default value (100)");
+            Iec104Utility::log_warn("%s application_layer.asdu_queue_size is not an integer -> using default value (%d)",
+                                    beforeLog.c_str(), m_asduQueueSize);
         }
     }
 
     if (applicationLayer.HasMember("accept_cmd_with_time")) {
         if (applicationLayer["accept_cmd_with_time"].IsInt()) {
             int acceptCmdWithTime = applicationLayer["accept_cmd_with_time"].GetInt();
-
             if (acceptCmdWithTime > -1 && acceptCmdWithTime < 3) {
                 m_allowedCommands = acceptCmdWithTime;
             }
             else {
-                Logger::getLogger()->warn("application_layer.accept_cmd_with_time has invalid value -> using default: only commands with timestamp allowed");
+                Iec104Utility::log_warn(
+                    "%s application_layer.accept_cmd_with_time value out of range [0..2]: %d -> using default: only commands with timestamp allowed (%d)",
+                    beforeLog.c_str(), acceptCmdWithTime, m_allowedCommands);
             }
         }
         else {
-            Logger::getLogger()->warn("application_layer.accept_cmd_with_time has invalid type -> using default: only commands with timestamp allowed");
+            Iec104Utility::log_warn(
+                "%s application_layer.accept_cmd_with_time is not an integer -> using default: only commands with timestamp allowed (%d)",
+                beforeLog.c_str(), m_allowedCommands);
         }
     }
 
     if (applicationLayer.HasMember("cmd_recv_timeout")) {
         if (applicationLayer["cmd_recv_timeout"].IsInt()) {
             int cmdRecvTimeout = applicationLayer["cmd_recv_timeout"].GetInt();
-
             if (cmdRecvTimeout >= 0) {
                 m_cmdRecvTimeout = cmdRecvTimeout;
             }
             else {
-                Logger::getLogger()->warn("application_layer.cmd_recv_timeout has invalid value -> using default: disabled (0)");
+                Iec104Utility::log_warn("%s application_layer.cmd_recv_timeout value out of range [0..+Inf]: %d -> using default: disabled (%d)",
+                                        beforeLog.c_str(), cmdRecvTimeout, m_cmdRecvTimeout);
             }
         }
         else {
-             Logger::getLogger()->warn("application_layer.cmd_recv_timeout has invalid type -> using default: disabled (0)");
+             Iec104Utility::log_warn("%s application_layer.cmd_recv_timeout is not an integer -> using default: disabled (%d)",
+                                    beforeLog.c_str(), m_cmdRecvTimeout);
         }
     }
 
     if (applicationLayer.HasMember("cmd_exec_timeout")) {
         if (applicationLayer["cmd_exec_timeout"].IsInt()) {
             int cmdExecTimeout = applicationLayer["cmd_exec_timeout"].GetInt();
-
             if (cmdExecTimeout >= 0) {
                 m_cmdExecTimeout = cmdExecTimeout;
             }
             else {
-                Logger::getLogger()->warn("application_layer.cmd_exec_timeout has invalid value -> using default: 20 seconds");
+                Iec104Utility::log_warn("%s application_layer.cmd_exec_timeout value out of range [0..+Inf]: %d -> using default: %d seconds",
+                                        beforeLog.c_str(), cmdExecTimeout, m_cmdExecTimeout);
             }
         }
         else {
-             Logger::getLogger()->warn("application_layer.cmd_exec_timeout has invalid type -> using default: 20 seconds");
+             Iec104Utility::log_warn("%s application_layer.cmd_exec_timeout is not an integer -> using default: %d seconds",
+                                    beforeLog.c_str(), m_cmdExecTimeout);
         }
     }
 
@@ -516,7 +549,7 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
             m_cmdDest = applicationLayer["cmd_dest"].GetString();
         }
         else {
-            Logger::getLogger()->warn("application_layer.cmd_dest has invalid type -> broadcast commands");
+            Iec104Utility::log_warn("%s application_layer.cmd_dest is not a string -> broadcast commands", beforeLog.c_str());
         }   
     }
 
@@ -524,8 +557,9 @@ IEC104Config::importProtocolConfig(const string& protocolConfig)
 }
 
 void
-IEC104Config::importExchangeConfig(const string& exchangeConfig)
+IEC104Config::importExchangeConfig(const std::string& exchangeConfig)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Config::importExchangeConfig -";
     m_exchangeConfigComplete = false;
 
     deleteExchangeDefinitions();
@@ -535,21 +569,26 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
     Document document;
 
     if (document.Parse(const_cast<char*>(exchangeConfig.c_str())).HasParseError()) {
-        Logger::getLogger()->fatal("Parsing error in data exchange configuration");
-
+        Iec104Utility::log_fatal("%s Parsing error in exchanged_data json, offset %u: %s", beforeLog.c_str(),
+                                    static_cast<unsigned>(document.GetErrorOffset()), GetParseError_En(document.GetParseError()));
         return;
     }
 
-    if (!document.IsObject())
+    if (!document.IsObject()) {
+        Iec104Utility::log_fatal("%s Root is not an object", beforeLog.c_str());
         return;
+    }
+        
 
     if (!document.HasMember(JSON_EXCHANGED_DATA) || !document[JSON_EXCHANGED_DATA].IsObject()) {
+        Iec104Utility::log_fatal("%s %s does not exist or is not an object", beforeLog.c_str(), JSON_EXCHANGED_DATA);
         return;
     }
 
     const Value& exchangeData = document[JSON_EXCHANGED_DATA];
 
     if (!exchangeData.HasMember(JSON_DATAPOINTS) || !exchangeData[JSON_DATAPOINTS].IsArray()) {
+        Iec104Utility::log_fatal("%s %s does not exist or is not an array", beforeLog.c_str(), JSON_DATAPOINTS);
         return;
     }
 
@@ -557,87 +596,119 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
 
     for (const Value& datapoint : datapoints.GetArray()) {
 
-        if (!datapoint.IsObject()) return;
+        if (!datapoint.IsObject()) {
+            Iec104Utility::log_error("%s %s element is not an object", beforeLog.c_str(), JSON_DATAPOINTS);
+            return;
+        } 
 
-        if (!datapoint.HasMember(JSON_LABEL) || !datapoint[JSON_LABEL].IsString()) return;
+        if (!datapoint.HasMember(JSON_LABEL) || !datapoint[JSON_LABEL].IsString()) {
+            Iec104Utility::log_error("%s %s does not exist or is not a string", beforeLog.c_str(), JSON_LABEL);
+            return;
+        }
 
-        string label = datapoint[JSON_LABEL].GetString();
+        std::string label = datapoint[JSON_LABEL].GetString();
 
-        if (!datapoint.HasMember(JSON_PROTOCOLS) || !datapoint[JSON_PROTOCOLS].IsArray()) return;
+        if (!datapoint.HasMember(JSON_PROTOCOLS) || !datapoint[JSON_PROTOCOLS].IsArray()) {
+            Iec104Utility::log_error("%s %s does not exist or is not an array", beforeLog.c_str(), JSON_PROTOCOLS);
+            return;
+        }
 
         for (const Value& protocol : datapoint[JSON_PROTOCOLS].GetArray()) {
             
-            if (!protocol.HasMember(JSON_PROT_NAME) || !protocol[JSON_PROT_NAME].IsString()) return;
+            if (!protocol.IsObject()) {
+                Iec104Utility::log_error("%s %s element is not an object", beforeLog.c_str(), JSON_PROTOCOLS);
+                return;
+            } 
             
-            string protocolName = protocol[JSON_PROT_NAME].GetString();
+            if (!protocol.HasMember(JSON_PROT_NAME) || !protocol[JSON_PROT_NAME].IsString()) {
+                Iec104Utility::log_error("%s %s does not exist or is not a string", beforeLog.c_str(), JSON_PROT_NAME);
+                return;
+            }
+            
+            std::string protocolName = protocol[JSON_PROT_NAME].GetString();
 
             if (protocolName == PROTOCOL_IEC104) {
 
-                if (!protocol.HasMember(JSON_PROT_ADDR) || !protocol[JSON_PROT_ADDR].IsString()) return;
-                if (!protocol.HasMember(JSON_PROT_TYPEID) || !protocol[JSON_PROT_TYPEID].IsString()) return;
+                if (!protocol.HasMember(JSON_PROT_ADDR) || !protocol[JSON_PROT_ADDR].IsString()) {
+                    Iec104Utility::log_error("%s %s does not exist or is not a string", beforeLog.c_str(), JSON_PROT_ADDR);
+                    return;
+                }
+                if (!protocol.HasMember(JSON_PROT_TYPEID) || !protocol[JSON_PROT_TYPEID].IsString()) {
+                    Iec104Utility::log_error("%s %s does not exist or is not a string", beforeLog.c_str(), JSON_PROT_TYPEID);
+                    return;
+                }
 
                 int32_t gi_groups = 0;
 
                 if (protocol.HasMember(JSON_PROT_GI_GROUPS)) {
 
-                    if(protocol[JSON_PROT_GI_GROUPS].IsString()){
+                    if(protocol[JSON_PROT_GI_GROUPS].IsString()) {
 
-                        string gi_groups_member = protocol[JSON_PROT_GI_GROUPS].GetString();
+                        std::string gi_groups_member = protocol[JSON_PROT_GI_GROUPS].GetString();
 
-                        if(gi_groups_member == "")
+                        if(gi_groups_member == "") {
                           gi_groups = 0; 
-
-                        else{
-                        
-                            stringstream ss(gi_groups_member);
-
+                        }
+                        else {
+                            std::stringstream ss(gi_groups_member);
                             while (ss.good()){
 
-                                string substr;
+                                std::string substr;
                                 getline( ss, substr, ',' );
 
-                                int group;
+                                int group = 0;
 
-                                if (substr == "station")    
+                                if (substr == "station") {
                                     group = 0;
-
-                                else if (all_of(substr.begin(), substr.end(), ::isdigit)){
-                                    group = stoi(substr);
+                                }   
+                                else if (all_of(substr.begin(), substr.end(), ::isdigit)) {
+                                    try {
+                                        group = std::stoi(substr);
+                                    } catch (const std::invalid_argument &e) {
+                                        Iec104Utility::log_error("%s  Cannot convert group '%s' to integer: %s",
+                                                                beforeLog.c_str(), substr.c_str(), e.what());
+                                        return;
+                                    } catch (const std::out_of_range &e) {
+                                        Iec104Utility::log_error("%s  Cannot convert group '%s' to integer: %s",
+                                                                beforeLog.c_str(), substr.c_str(), e.what());
+                                        return;
+                                    }
 
                                     if(group <= 0 || group >= 17){
-                                        Logger::getLogger()->warn("gi_groups value out of range, defaulting to station.");
+                                        Iec104Utility::log_warn("%s %s value out of range [1..16]: %d, defaulting to station.",
+                                                                beforeLog.c_str(), JSON_PROT_GI_GROUPS, group, gi_groups);
                                         gi_groups = 1;   
                                         break;
                                     }
                                 }
-
                                 else {
-                                    Logger::getLogger()->warn("gi_groups value invalid, defaulting to station.");
+                                    Iec104Utility::log_warn("%s %s value invalid, defaulting to station.", beforeLog.c_str(),
+                                                            JSON_PROT_GI_GROUPS);
                                     gi_groups = 1;   
                                     break;
                                 }
 
                                 gi_groups |= (1 << group); 
-
                             }  
                         }
                     }
                     else {
-                        Logger::getLogger()->warn("gi_groups value is of invalid type, defaulting to station.");
+                        Iec104Utility::log_warn("%s %s value is not a string, defaulting to station.", beforeLog.c_str(),
+                                                JSON_PROT_GI_GROUPS);
                         gi_groups = 1;   
                         break;
                     } 
-
+                }
+                else {
+                    gi_groups = 1;
                 }
 
-                else gi_groups = 1;
+                Iec104Utility::log_debug("%s GI GROUPS = %i", beforeLog.c_str(), gi_groups);    
 
-                printf("\n GI GROUPS = %i\n", gi_groups);    
+                std::string address = protocol[JSON_PROT_ADDR].GetString();
+                std::string typeIdStr = protocol[JSON_PROT_TYPEID].GetString();
 
-                string address = protocol[JSON_PROT_ADDR].GetString();
-                string typeIdStr = protocol[JSON_PROT_TYPEID].GetString();
-
-                printf("  address: %s type: %s\n", address.c_str(), typeIdStr.c_str());
+                Iec104Utility::log_debug("%s  address: %s type: %s", beforeLog.c_str(), address.c_str(), typeIdStr.c_str());
 
                 size_t sepPos = address.find("-");
 
@@ -645,13 +716,24 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
                     std::string caStr = address.substr(0, sepPos);
                     std::string ioaStr = address.substr(sepPos + 1);
 
-                    int ca = std::stoi(caStr);
-                    int ioa = std::stoi(ioaStr);
+                    int ca = 0;
+                    int ioa = 0;
+                    try {
+                        ca = std::stoi(caStr);
+                        ioa = std::stoi(ioaStr);
+                    } catch (const std::invalid_argument &e) {
+                        Iec104Utility::log_error("%s  Cannot convert ca '%s' or ioa '%s' to integer: %s",
+                                                beforeLog.c_str(), caStr.c_str(), ioaStr.c_str(), e.what());
+                        return;
+                    } catch (const std::out_of_range &e) {
+                        Iec104Utility::log_error("%s  Cannot convert ca '%s' or ioa '%s' to integer: %s",
+                                                beforeLog.c_str(), caStr.c_str(), ioaStr.c_str(), e.what());
+                        return;
+                    }
 
-                    printf("    CA: %i IOA: %i\n", ca, ioa);
+                    Iec104Utility::log_debug("%s  CA: %i IOA: %i", beforeLog.c_str(), ca, ioa);
 
                     int typeId = IEC104DataPoint::getTypeIdFromString(typeIdStr);
-
                     int dataType = IEC104DataPoint::typeIdToDataType(typeId);
 
                     bool isCommand = IEC104DataPoint::isSupportedCommandType(typeId);
@@ -663,8 +745,14 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
                         (*m_exchangeDefinitions)[ca][ioa] = newDp;
                     }
                     else {
-                        printf("Skip datapoint %i:%i\n", ca, ioa);
+                        Iec104Utility::log_debug("%s  Skip datapoint %i:%i as it is not a supported type: %s",
+                                                beforeLog.c_str(), ca, ioa, typeIdStr.c_str());
                     }
+                }
+                else {
+                    Iec104Utility::log_error("%s  %s value does not follow format 'XXX-YYY': %s", beforeLog.c_str(), JSON_PROT_ADDR,
+                                            address.c_str());
+                    return;
                 }
             }
         }
@@ -674,20 +762,25 @@ IEC104Config::importExchangeConfig(const string& exchangeConfig)
 }
 
 void
-IEC104Config::importTlsConfig(const string& tlsConfig)
+IEC104Config::importTlsConfig(const std::string& tlsConfig)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Config::importTlsConfig -";
     Document document;
 
     if (document.Parse(const_cast<char*>(tlsConfig.c_str())).HasParseError()) {
-        Logger::getLogger()->fatal("Parsing error in TLS configuration");
-
+        Iec104Utility::log_fatal("%s Parsing error in tls_conf json, offset %u: %s", beforeLog.c_str(),
+                                static_cast<unsigned>(document.GetErrorOffset()), GetParseError_En(document.GetParseError()));
         return;
     }
        
-    if (!document.IsObject())
+    if (!document.IsObject()) {
+        Iec104Utility::log_fatal("%s Root is not an object", beforeLog.c_str());
         return;
+    }
+        
 
     if (!document.HasMember("tls_conf") || !document["tls_conf"].IsObject()) {
+        Iec104Utility::log_debug("%s tls_conf does not exist or is not an object", beforeLog.c_str());
         return;
     }
 
@@ -696,9 +789,15 @@ IEC104Config::importTlsConfig(const string& tlsConfig)
     if (tlsConf.HasMember("private_key") && tlsConf["private_key"].IsString()) {
         m_privateKey = tlsConf["private_key"].GetString();
     }
+    else {
+        Iec104Utility::log_warn("%s private_key does not exist or is not a string", beforeLog.c_str());
+    }
 
     if (tlsConf.HasMember("own_cert") && tlsConf["own_cert"].IsString()) {
         m_ownCertificate = tlsConf["own_cert"].GetString();
+    }
+    else {
+        Iec104Utility::log_warn("%s own_cert does not exist or is not a string", beforeLog.c_str());
     }
 
     if (tlsConf.HasMember("ca_certs") && tlsConf["ca_certs"].IsArray()) {
@@ -706,14 +805,22 @@ IEC104Config::importTlsConfig(const string& tlsConfig)
         const Value& caCerts = tlsConf["ca_certs"];
 
         for (const Value& caCert : caCerts.GetArray()) {
-            if (caCert.HasMember("cert_file")) {
-                if (caCert["cert_file"].IsString()) {
-                    string certFileName = caCert["cert_file"].GetString();
-
-                    m_caCertificates.push_back(certFileName);
-                }
+            if (!caCert.IsObject()) {
+                Iec104Utility::log_warn("%s ca_certs element is not an object", beforeLog.c_str());
+                continue;
+            }
+            
+            if (caCert.HasMember("cert_file") && caCert["cert_file"].IsString()) {
+                std::string certFileName = caCert["cert_file"].GetString();
+                m_caCertificates.push_back(certFileName);
+            }
+            else {
+                Iec104Utility::log_warn("%s ca_certs.cert_file does not exist or is not a string", beforeLog.c_str());
             }
         }
+    }
+    else {
+        Iec104Utility::log_warn("%s ca_certs does not exist or is not an array", beforeLog.c_str());
     }
 
     if (tlsConf.HasMember("remote_certs") && tlsConf["remote_certs"].IsArray()) {
@@ -721,14 +828,22 @@ IEC104Config::importTlsConfig(const string& tlsConfig)
         const Value& remoteCerts = tlsConf["remote_certs"];
 
         for (const Value& remoteCert : remoteCerts.GetArray()) {
-            if (remoteCert.HasMember("cert_file")) {
-                if (remoteCert["cert_file"].IsString()) {
-                    string certFileName = remoteCert["cert_file"].GetString();
+            if (!remoteCert.IsObject()) {
+                Iec104Utility::log_warn("%s remote_certs element is not an object", beforeLog.c_str());
+                continue;
+            }
 
-                    m_remoteCertificates.push_back(certFileName);
-                }
+            if (remoteCert.HasMember("cert_file") && remoteCert["cert_file"].IsString()) {
+                std::string certFileName = remoteCert["cert_file"].GetString();
+                m_remoteCertificates.push_back(certFileName);
+            }
+            else {
+                Iec104Utility::log_warn("%s remote_certs.cert_file does not exist or is not a string", beforeLog.c_str());
             }
         }
+    }
+    else {
+        Iec104Utility::log_warn("%s remote_certs does not exist or is not an array", beforeLog.c_str());
     }
 }
 
@@ -736,7 +851,7 @@ int IEC104Config::TcpPort()
 {
     if (m_tcpPort == -1) {
         //TODO check for TLS
-        return 2404;
+        return m_defaultTcpPort;
     }
     else {
         return m_tcpPort;
@@ -745,11 +860,12 @@ int IEC104Config::TcpPort()
 
 bool IEC104Config::IsOriginatorAllowed(int oa)
 {
+    std::string beforeLog = Iec104Utility::PluginName + " - IEC104Config::IsOriginatorAllowed -";
     if (m_filterOriginators) {
         if (m_allowedOriginators.count(oa) > 0)
             return true;
         else {
-            printf("OA %i not allowed!\n", oa);
+            Iec104Utility::log_warn("%s OA %i not allowed!", beforeLog.c_str(), oa);
             return false;
         }
     }
