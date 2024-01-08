@@ -13,7 +13,7 @@ env:
   IMAGE_REGISTRY: ghcr.io
   REGISTRY_USER: ${{ github.actor }}
   REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-  FLEDGE_IMAGE_NAME_104: 'fledgepower/fledge_104'
+  FLEDGE_IMAGE_NAME_104: 'fledgepower/fledge-104-pt'
   IMAGE_TAG: 'latest'
 
 jobs:
